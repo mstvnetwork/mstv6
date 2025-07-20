@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Live TV Multi-Channel</title>
+  <style>
+    body {
+      margin: 0;
+      background: black;
+      color: white;
+      font-family: Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    #video-container {
+      position: relative;
+      width: 90vw;
+      max-width: 960px;
+      aspect-ratio: 16/9;
+      background: #000;
+      border: 2px solid #ccc;
+      box-shadow: 0 0 15px #333;
+    }
+    video {
+      width: 100%;
+      height: 100%;
+      display: block;
+      background: black;
+    }
+    #muteToggle {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      font-size: 26px;
+      cursor: pointer;
+      background: rgba(0,0,0,0.5);
+      padding: 5px 10px;
+      border-radius: 8px;
+      user-select: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="video-container">
+    <video id="video" muted autoplay playsinline></video>
+    <div id="muteToggle">🔇</div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  <script>
+    const video = document.getElementById("video");
+    const muteToggle = document.getElementById("muteToggle");
+
+    // Define multiple channels by ID
+    const channels = {
+      "1": [
+        { url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8", duration: 300 },
+        { url: "https://moiptvhls-i.akamaihd.net/hls/live/652398/securechannel1/master.m3u8", duration: 300 }
+      ],
+      "2": [
+        { url: "http://sample.vodobox.net/skate_phantom_flex_4k/skate_phantom_flex_4k.m3u8", duration: 300 },
+        { url: "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8", duration: 300 }
+      ],
+      "3": [
+        { url: "https://bitdash-a.akamaihd.net/content/sintel/hls/playlist.m3u8", duration: 300 },
+        { url: "https://mnmedias.api.telequebec.tv/m3u8/29880.m3u8", duration: 300 }
+      ]
+    };
+
+    // Get channel number from URL (default to 1)
+    const urlParams = new URLSearchParams(window.location.search);
+    const ch = urlParams.get("ch") || "1";
+    const playlist = channels[ch] || channels["1"];
+
+    function getCurrentItem() {
+      const totalDuration = playlist.reduce((sum, item) => sum + item.duration, 0);
+      const now = Math.floor(Date.now() / 1000);
+      const position = now % totalDuration;
+
+      let elapsed = 0;
+      for (let i = 0; i < playlist.length; i++) {
+        if (position < elapsed + playlist[i].duration) {
+          return {
+            index: i,
+            startOffset: position - elapsed
+          };
+        }
+        elapsed += playlist[i].duration;
+      }
+    }
+
+    function playStream() {
+      const { index, startOffset } = getCurrentItem();
+      const source = playlist[index].url;
+
+      if (Hls.isSupported()) {
+        const hls = new Hls();
+        hls.loadSource(source);
+        hls.attachMedia(video);
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          video.currentTime = startOffset;
+          video.play();
+        });
+      } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+        video.src = source;
+        video.addEventListener("loadedmetadata", () => {
+          video.currentTime = startOffset;
+          video.play();
+        });
+      }
+
+      // Load next item after this one ends based on schedule
+      setTimeout(() => {
+        playStream();
+      }, (playlist[index].duration - startOffset) * 1000);
+    }
+
+    muteToggle.onclick = () => {
+      video.muted = !video.muted;
+      muteToggle.textContent = video.muted ? "🔇" : "🔊";
+    };
+
+    playStream();
+  </script>
+</body>
+</html>
