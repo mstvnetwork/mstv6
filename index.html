@@ -50,45 +50,55 @@
     <div id="muteToggle">🔇</div>
   </div>
 
-  <!-- HLS.js -->
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-
   <script>
-    // Channel definitions
+    // Duration string to seconds
+    function parseDuration(durationStr) {
+      const parts = durationStr.split(":").map(Number);
+      return parts.reduce((acc, val) => acc * 60 + val, 0);
+    }
+
+    // Channel playlist data
     const channelsRaw = {
-      "1":[
-        { url: "https://i-cdn-0.vncent368odd.com/stream2/i-cdn-0/c65cfe8dfb2e8ddef60139891edfd68d/MJTMsp1RshGTygnMNRUR2N2MSlnWXZEdMNDZzQWe5MDZzMmdZJTO1R2RWVHZDljekhkSsl1VwYnWtx2cihVT2lFVKh2TEFUMNpnQq5keNdnTqlEMNpnWr50RSlWTHl1daRFZrlleFpXT6NWP:1753349863:120.19.172.196:b350495ca78ef60287884e22774587fa659ce4af29838a3556ec464f56a50a00/index.m3u8", duration: "03:16:37"}
+      "1": [
+        {
+          url: "https://i-cdn-0.vncent368odd.com/stream2/i-cdn-0/c65cfe8dfb2e8ddef60139891edfd68d/MJTMsp1RshGTygnMNRUR2N2MSlnWXZEdMNDZzQWe5MDZzMmdZJTO1R2RWVHZDljekhkSsl1VwYnWtx2cihVT2lFVKh2TEFUMNpnQq5keNdnTqlEMNpnWr50RSlWTHl1daRFZrlleFpXT6NWP:1753349863:120.19.172.196:b350495ca78ef60287884e22774587fa659ce4af29838a3556ec464f56a50a00/index.m3u8",
+          duration: "03:16:37"
+        }
       ],
       "2": [
-        { url: "https://teamomw5.com/hls/xwwm3clgpeg4cof2bs2ual45xojxhpomcscobd7cq,g66k622ticgoqpsdngq,n46k622ticb3c42wieq,udok622ticlbmtecm4a,.urlset/master.m3u8?xxx=123", duration: "02:37:51" }
+        {
+          url: "https://teamomw5.com/hls/xwwm3clgpeg4cof2bs2ual45xojxhpomcscobd7cq,g66k622ticgoqpsdngq,n46k622ticb3c42wieq,udok622ticlbmtecm4a,.urlset/master.m3u8?xxx=123",
+          duration: "02:37:51"
+        }
       ],
       "3": [
-        { url: "https://flipfit-cdn.akamaized.net/flip_hls/661f570aab9d840019942b80-473e0b/video_h1.m3u8", duration: "00:00:60" },
-        { url: "https://flipfit-cdn.akamaized.net/flip_hls/664d87dfe8e47500199ee49e-dbd56b/video_h1.m3u8", duration: "00:00:60" },
-        { url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8", duration: "00:00:60" }
+        {
+          url: "https://flipfit-cdn.akamaized.net/flip_hls/661f570aab9d840019942b80-473e0b/video_h1.m3u8",
+          duration: "00:00:60"
+        },
+        {
+          url: "https://flipfit-cdn.akamaized.net/flip_hls/664d87dfe8e47500199ee49e-dbd56b/video_h1.m3u8",
+          duration: "00:00:60"
+        },
+        {
+          url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
+          duration: "00:00:60"
+        }
       ]
     };
 
-    // Parse duration "HH:MM:SS" into seconds
-    function parseDuration(str) {
-      const [h, m, s] = str.split(":").map(Number);
-      return h * 3600 + m * 60 + s;
-    }
+    const video = document.getElementById("video");
+    const muteToggle = document.getElementById("muteToggle");
 
-    // Get channel from URL or default to 1
     const urlParams = new URLSearchParams(window.location.search);
     const ch = urlParams.get("ch") || "1";
 
-    // Build playlist from channel
     const playlist = (channelsRaw[ch] || channelsRaw["1"]).map(item => ({
       url: item.url,
       duration: parseDuration(item.duration)
     }));
 
-    const video = document.getElementById("video");
-    const muteToggle = document.getElementById("muteToggle");
-
-    // Determine current item in playlist based on time
     function getCurrentItem() {
       const totalDuration = playlist.reduce((sum, item) => sum + item.duration, 0);
       const now = Math.floor(Date.now() / 1000);
@@ -106,7 +116,6 @@
       }
     }
 
-    // Play the current stream
     function playStream() {
       const { index, startOffset } = getCurrentItem();
       const source = playlist[index].url;
@@ -127,19 +136,17 @@
         });
       }
 
-      // Schedule the next stream
+      // Schedule next item
       setTimeout(() => {
         playStream();
       }, (playlist[index].duration - startOffset) * 1000);
     }
 
-    // Toggle mute
     muteToggle.onclick = () => {
       video.muted = !video.muted;
       muteToggle.textContent = video.muted ? "🔇" : "🔊";
     };
 
-    // Start the player
     playStream();
   </script>
 </body>
