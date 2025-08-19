@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Pseudo Live with Auto Updates</title>
+  <title>Pseudo Live with Seek Lock & Banner</title>
   <style>
     html, body {
       margin: 0;
@@ -17,6 +17,7 @@
       position: relative;
       width: 100%;
       height: 100%;
+      overflow: hidden;
     }
 
     video {
@@ -52,6 +53,35 @@
       border-radius: 50%;
       cursor: pointer;
     }
+
+    #scrollBanner {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      background-color: #007BFF;
+      color: white;
+      font-family: sans-serif;
+      font-size: 1em;
+      overflow: hidden;
+      white-space: nowrap;
+      z-index: 11;
+    }
+
+    #scrollText {
+      display: inline-block;
+      padding-left: 100%;
+      animation: scrollText 20s linear infinite;
+    }
+
+    @keyframes scrollText {
+      0% {
+        transform: translateX(0%);
+      }
+      100% {
+        transform: translateX(-100%);
+      }
+    }
   </style>
 </head>
 <body>
@@ -59,6 +89,11 @@
     <video id="videoPlayer" autoplay playsinline muted></video>
     <div id="loaderOverlay">Loading stream...</div>
     <button id="muteButton">🔇</button>
+
+    <!-- ✅ Scrolling Banner -->
+    <div id="scrollBanner">
+      <div id="scrollText">Now Playing: "Title A" — Coming Up Next: "Title B"</div>
+    </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
@@ -70,6 +105,7 @@
     let currentUrl = '';
     let currentIndex = -1;
     let channel = null;
+    let seekTimeout = null;
 
     function getPlaybackPosition(channel) {
       const total = channel.durations.reduce((a, b) => a + b, 0);
@@ -96,8 +132,10 @@
       document.getElementById('videoContainer').replaceChild(newVideo, video);
       video = newVideo;
 
-      // Re-attach mute toggle logic after replacing video element
       attachMuteButtonLogic();
+      attachSeekLock();
+
+      return newVideo;
     }
 
     function loadStream(index, time) {
@@ -154,13 +192,13 @@
         currentUrl = newUrl;
         channel = newChannel;
         loadStream(index, time);
+        updateBanner(index, newChannel);
       } else if (Math.abs(video.currentTime - time) > 3) {
         video.currentTime = time;
       }
     }
 
     function attachMuteButtonLogic() {
-      // Always ensure mute button works with the current video element
       muteButton.textContent = video.muted ? '🔇' : '🔊';
 
       muteButton.onclick = () => {
@@ -173,14 +211,44 @@
       };
     }
 
-    // Initial setup
-    attachMuteButtonLogic();
+    function attachSeekLock() {
+      video.addEventListener('seeking', () => {
+        clearTimeout(seekTimeout);
+        const { time: liveTime } = getPlaybackPosition(channel);
+        const currentTime = video.currentTime;
+        const diff = currentTime - liveTime;
 
-    // Start loop
+        console.log(`⏱️ Seeking diff: ${diff.toFixed(2)}s`);
+
+        if (diff > 3) {
+          console.log('⏩ Too far ahead — snapping back to live');
+          video.currentTime = liveTime;
+        } else if (diff < -3) {
+          console.log('⏪ Rewind detected — will return to live in 10s');
+          seekTimeout = setTimeout(() => {
+            console.log('🔁 Returning to live now');
+            video.currentTime = getPlaybackPosition(channel).time;
+          }, 10000);
+        }
+      });
+    }
+
+    function updateBanner(currentIndex, channel) {
+      const scrollText = document.getElementById('scrollText');
+      const currentTitle = channel.titles?.[currentIndex] || `Video ${currentIndex + 1}`;
+      const nextTitle = channel.titles?.[currentIndex + 1] || "Stay tuned...";
+      scrollText.textContent = `Now Playing: "${currentTitle}" — Coming Up Next: "${nextTitle}"`;
+    }
+
+    // Start sync loop every 5s
     (function loop() {
       syncPlayback();
       setTimeout(loop, 5000);
     })();
+
+    // Initial setup
+    attachMuteButtonLogic();
+    attachSeekLock();
   </script>
 </body>
 </html>
