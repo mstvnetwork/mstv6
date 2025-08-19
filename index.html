@@ -1,86 +1,138 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>MSTV Instant Switch Player</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pseudo Live with Auto Updates</title>
   <style>
-    body {
-      margin: 0;
+    html, body {
+      margin: 0; padding: 0;
       background: black;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
+      height: 100%; overflow: hidden;
     }
-    iframe {
-      width: 100%;
-      height: 100%;
-      border: none;
+    #videoContainer {
+      position: relative;
+      width: 100%; height: 100%;
     }
-    #spinner {
+    video {
+      width: 100%; height: 100%;
+      object-fit: cover;
+    }
+    #loaderOverlay {
       position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      border: 6px solid #f3f3f3;
-      border-top: 6px solid gold;
-      border-radius: 50%;
-      width: 50px;
-      height: 50px;
-      animation: spin 1s linear infinite;
-      z-index: 9999;
-    }
-    @keyframes spin {
-      0% { transform: translate(-50%, -50%) rotate(0deg); }
-      100% { transform: translate(-50%, -50%) rotate(360deg); }
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.85);
+      display: flex; align-items: center; justify-content: center;
+      color: gold; font-family: sans-serif; font-size: 1.2em;
+      z-index: 10;
     }
   </style>
 </head>
 <body>
-  <div id="spinner"></div>
-  <iframe id="player" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+  <div id="videoContainer">
+    <video id="videoPlayer" autoplay playsinline muted></video>
+    <div id="loaderOverlay">Loading stream...</div>
+  </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
   <script>
-    const player = document.getElementById("player");
-    const spinner = document.getElementById("spinner");
+    let video = document.getElementById('videoPlayer');
+    let loader = document.getElementById('loaderOverlay');
+    let hls = null;
+    let currentUrl = '';
+    let currentIndex = -1;
+    let channel = null;
 
-    // Get channel param from URL (?ch=1)
-    const urlParams = new URLSearchParams(window.location.search);
-    const ch = urlParams.get("ch") || "1";
-    const jsonUrl = `sync-ch${ch}.json`;
-
-    let currentUrl = null;
-
-    async function fetchChannel() {
-      try {
-        const res = await fetch(jsonUrl + "?_=" + Date.now()); // prevent cache
-        const data = await res.json();
-
-        // Get first video url from the JSON
-        const newUrl = data.video_list[0].url;
-
-        if (newUrl !== currentUrl) {
-          currentUrl = newUrl;
-          switchVideo(newUrl);
+    function getPlaybackPosition(channel) {
+      const total = channel.durations.reduce((a, b) => a + b, 0);
+      const now = Math.floor(Date.now() / 1000) % total;
+      let offset = 0;
+      for (let i = 0; i < channel.durations.length; i++) {
+        if (now < offset + channel.durations[i]) {
+          return { index: i, time: now - offset };
         }
-      } catch (e) {
-        console.error("Error fetching JSON:", e);
+        offset += channel.durations[i];
+      }
+      return { index: 0, time: 0 };
+    }
+
+    function resetVideo() {
+      const newVideo = document.createElement('video');
+      newVideo.id = 'videoPlayer';
+      newVideo.autoplay = true;
+      newVideo.playsInline = true;
+      newVideo.muted = true;
+      newVideo.style.width = "100%";
+      newVideo.style.height = "100%";
+      newVideo.style.objectFit = "cover";
+      document.getElementById('videoContainer').replaceChild(newVideo, video);
+      video = newVideo;
+    }
+
+    function loadStream(index, time) {
+      const url = channel.urls[index];
+      loader.style.display = 'flex';
+
+      if (hls) {
+        hls.destroy();
+        hls = null;
+      }
+
+      resetVideo();
+
+      if (Hls.isSupported()) {
+        hls = new Hls();
+        hls.loadSource(url);
+        hls.attachMedia(video);
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          video.currentTime = time;
+          video.play().catch(console.warn);
+        });
+        hls.on(Hls.Events.LEVEL_LOADED, () => {
+          loader.style.display = 'none';
+        });
+      } else {
+        video.src = url;
+        video.onloadeddata = () => {
+          video.currentTime = time;
+          video.play().catch(console.warn);
+          loader.style.display = 'none';
+        };
       }
     }
 
-    function switchVideo(url) {
-      spinner.style.display = "block";
-      player.src = url;
-      player.onload = () => {
-        spinner.style.display = "none";
-      };
+    async function fetchChannel() {
+      try {
+        const response = await fetch('/channel.json?_=' + Date.now()); // bust cache
+        return await response.json();
+      } catch (err) {
+        console.error("Failed to fetch channel.json", err);
+        return null;
+      }
     }
 
-    // Initial load
-    fetchChannel();
+    async function syncPlayback() {
+      const newChannel = await fetchChannel();
+      if (!newChannel || !newChannel.urls.length) return;
 
-    // Poll every 2 seconds
-    setInterval(fetchChannel, 2000);
+      const { index, time } = getPlaybackPosition(newChannel);
+      const newUrl = newChannel.urls[index];
+
+      if (index !== currentIndex || newUrl !== currentUrl) {
+        currentIndex = index;
+        currentUrl = newUrl;
+        channel = newChannel;
+        loadStream(index, time);
+      } else if (Math.abs(video.currentTime - time) > 3) {
+        video.currentTime = time;
+      }
+    }
+
+    // Initial sync and start polling loop
+    (function loop() {
+      syncPlayback();
+      setTimeout(loop, 5000);
+    })();
   </script>
 </body>
 </html>
