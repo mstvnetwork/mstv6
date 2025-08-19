@@ -6,25 +6,51 @@
   <title>Pseudo Live with Auto Updates</title>
   <style>
     html, body {
-      margin: 0; padding: 0;
+      margin: 0;
+      padding: 0;
       background: black;
-      height: 100%; overflow: hidden;
+      height: 100%;
+      overflow: hidden;
     }
+
     #videoContainer {
       position: relative;
-      width: 100%; height: 100%;
+      width: 100%;
+      height: 100%;
     }
+
     video {
-      width: 100%; height: 100%;
+      width: 100%;
+      height: 100%;
       object-fit: cover;
     }
+
     #loaderOverlay {
       position: absolute;
-      top: 0; left: 0; width: 100%; height: 100%;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
       background: rgba(0, 0, 0, 0.85);
-      display: flex; align-items: center; justify-content: center;
-      color: gold; font-family: sans-serif; font-size: 1.2em;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: gold;
+      font-family: sans-serif;
+      font-size: 1.2em;
       z-index: 10;
+    }
+
+    #muteButton {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 11;
+      font-size: 1.5em;
+      padding: 8px;
+      background: rgba(0, 0, 0, 0.5);
+      color: white;
+      border: none;
+      border-radius: 50%;
+      cursor: pointer;
     }
   </style>
 </head>
@@ -32,12 +58,14 @@
   <div id="videoContainer">
     <video id="videoPlayer" autoplay playsinline muted></video>
     <div id="loaderOverlay">Loading stream...</div>
+    <button id="muteButton">🔇</button>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
   <script>
     let video = document.getElementById('videoPlayer');
     let loader = document.getElementById('loaderOverlay');
+    let muteButton = document.getElementById('muteButton');
     let hls = null;
     let currentUrl = '';
     let currentIndex = -1;
@@ -67,6 +95,9 @@
       newVideo.style.objectFit = "cover";
       document.getElementById('videoContainer').replaceChild(newVideo, video);
       video = newVideo;
+
+      // Re-attach mute toggle logic after replacing video element
+      attachMuteButtonLogic();
     }
 
     function loadStream(index, time) {
@@ -103,7 +134,7 @@
 
     async function fetchChannel() {
       try {
-        const response = await fetch('/channel.json?_=' + Date.now()); // bust cache
+        const response = await fetch('/channel.json?_=' + Date.now()); // cache-busting
         return await response.json();
       } catch (err) {
         console.error("Failed to fetch channel.json", err);
@@ -128,7 +159,24 @@
       }
     }
 
-    // Initial sync and start polling loop
+    function attachMuteButtonLogic() {
+      // Always ensure mute button works with the current video element
+      muteButton.textContent = video.muted ? '🔇' : '🔊';
+
+      muteButton.onclick = () => {
+        video.muted = !video.muted;
+        muteButton.textContent = video.muted ? '🔇' : '🔊';
+
+        if (!video.paused) {
+          video.play().catch(console.warn);
+        }
+      };
+    }
+
+    // Initial setup
+    attachMuteButtonLogic();
+
+    // Start loop
     (function loop() {
       syncPlayback();
       setTimeout(loop, 5000);
