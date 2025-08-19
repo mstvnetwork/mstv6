@@ -1,6 +1,6 @@
 {
   "type": "m3u8",
   "durations": [3600],
-  "urls": "https://gt4s3g.cfglobalcdn.com/silverlight/secip/113295/133612/IoRbdn-CPKGZUGLuIVEN4g/MTIwLjIxLjc5LjI0OA==/1755624243/hls-vod-s002/flv/api/files/videos/2025/08/19/1755585723vuuip.mp4.m3u8"
+  "urls": ["https://gt4s3g.cfglobalcdn.com/silverlight/secip/113295/133612/IoRbdn-CPKGZUGLuIVEN4g/MTIwLjIxLjc5LjI0OA==/1755624243/hls-vod-s002/flv/api/files/videos/2025/08/19/1755585723vuuip.mp4.m3u8"
   ]
 }
