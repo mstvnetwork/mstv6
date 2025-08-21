@@ -1,7 +1,7 @@
 {
   "type": "m3u8",
   "durations": [9462],
-  "urls": ["https://fa723fc1b171.us-west-2.playback.live-video.net/api/video/v1/us-west-2.196233775518.channel.G2fVYsJP8NfF.m3u8?browser_family=chrome&browser_version=110.0&cdm=wv&os_name=Android&os_version=15&platform=mobile_web&player_backend=mediaplayer&player_version=1.31.0&supported_codecs=av1,h265,h264&token=eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzM4NCJ9.eyJhd3M6Y2hhbm5lbC1hcm4iOiJhcm46YXdzOml2czp1cy13ZXN0LTI6MTk2MjMzNzc1NTE4OmNoYW5uZWwvRzJmVllzSlA4TmZGIiwiYXdzOmFjY2Vzcy1jb250cm9sLWFsbG93LW9yaWdpbiI6Imh0dHBzOi8va2ljay5jb20saHR0cHM6Ly93d3cuZ3N0YXRpYy5jb20saHR0cHM6Ly8qLmtpY2subGl2ZSxodHRwczovL3BsYXllci5raWNrLmNvbSxodHRwczovL2FkbWluLmtpY2suY29tLGh0dHBzOi8vYmV0YS5raWNrLmNvbSxodHRwczovL25leHQua2ljay5jb20saHR0cHM6Ly9kYXNoYm9hcmQua2ljay5jb20saHR0cHM6Ly8qLnByZXZpZXcua2ljay5jb20iLCJhd3M6c3RyaWN0LW9yaWdpbi1lbmZvcmNlbWVudCI6ZmFsc2UsImV4cCI6MTc1NTc2NzQ2N30.9Wvj-__kvVpwDnMHX-5Yc79NSuI6XeCVmi8bNXY0IvHL0JFGW4Nc56m9oVvR8jt5DzWeH5oIhQ6rq5SGjYZWpxTXFwwHubONhiTZno3YP6nD9RljPA97ds_wgobRp1-D"    
+  "urls": ["https://cdn2.einthusan.io/etv/content/D7ret.mp4.m3u8?e=1755788770&md5=oJSehwJJBl1NYnhOb-U9Pw"    
   ],
     "titles": ["SITAARE JAMEEN PAR"
   ]
