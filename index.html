@@ -24,6 +24,21 @@
       width: 100%;
       height: 100%;
       object-fit: cover;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+    }
+
+    #videoPlaceholder {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      z-index: 0;
+      background-color: black;
+      display: block;
     }
 
     #loaderOverlay {
@@ -87,6 +102,7 @@
 <body>
   <div id="videoContainer">
     <video id="videoPlayer" autoplay playsinline muted></video>
+    <img id="videoPlaceholder" src="https://raw.githubusercontent.com/mstvnetwork/mstv6/main/images%20(0).png" alt="Placeholder" />
     <div id="loaderOverlay">Loading stream...</div>
     <button id="muteButton">🔇</button>
 
@@ -101,6 +117,7 @@
     let video = document.getElementById('videoPlayer');
     let loader = document.getElementById('loaderOverlay');
     let muteButton = document.getElementById('muteButton');
+    let placeholder = document.getElementById('videoPlaceholder');
     let hls = null;
     let currentUrl = '';
     let currentIndex = -1;
@@ -120,6 +137,14 @@
       return { index: 0, time: 0 };
     }
 
+    function updatePlaceholderVisibility() {
+      if (video.readyState >= 2 && !video.paused && !video.ended) {
+        placeholder.style.display = 'none';
+      } else {
+        placeholder.style.display = 'block';
+      }
+    }
+
     function resetVideo() {
       const newVideo = document.createElement('video');
       newVideo.id = 'videoPlayer';
@@ -129,12 +154,23 @@
       newVideo.style.width = "100%";
       newVideo.style.height = "100%";
       newVideo.style.objectFit = "cover";
+      newVideo.style.position = "absolute";
+      newVideo.style.top = "0";
+      newVideo.style.left = "0";
+      newVideo.style.zIndex = "1";
       document.getElementById('videoContainer').replaceChild(newVideo, video);
       video = newVideo;
+
+      video.addEventListener('play', updatePlaceholderVisibility);
+      video.addEventListener('pause', updatePlaceholderVisibility);
+      video.addEventListener('ended', updatePlaceholderVisibility);
+      video.addEventListener('error', updatePlaceholderVisibility);
+      video.addEventListener('loadeddata', updatePlaceholderVisibility);
 
       attachMuteButtonLogic();
       attachSeekLock();
 
+      updatePlaceholderVisibility();
       return newVideo;
     }
 
@@ -156,9 +192,13 @@
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
           video.currentTime = time;
           video.play().catch(console.warn);
+          updatePlaceholderVisibility();
         });
         hls.on(Hls.Events.LEVEL_LOADED, () => {
           loader.style.display = 'none';
+        });
+        hls.on(Hls.Events.ERROR, () => {
+          updatePlaceholderVisibility();
         });
       } else {
         video.src = url;
@@ -166,13 +206,15 @@
           video.currentTime = time;
           video.play().catch(console.warn);
           loader.style.display = 'none';
+          updatePlaceholderVisibility();
         };
+        video.onerror = updatePlaceholderVisibility;
       }
     }
 
     async function fetchChannel() {
       try {
-        const response = await fetch('/channel.json?_=' + Date.now()); // cache-busting
+        const response = await fetch('/channel.json?_=' + Date.now());
         return await response.json();
       } catch (err) {
         console.error("Failed to fetch channel.json", err);
@@ -208,6 +250,7 @@
         if (!video.paused) {
           video.play().catch(console.warn);
         }
+        updatePlaceholderVisibility();
       };
     }
 
@@ -249,6 +292,7 @@
     // Initial setup
     attachMuteButtonLogic();
     attachSeekLock();
+    updatePlaceholderVisibility();
   </script>
 </body>
 </html>
