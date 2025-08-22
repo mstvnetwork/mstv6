@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Custom Overlay Player</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pseudo Live with Seek Lock & Banner</title>
   <style>
     html, body {
       margin: 0;
@@ -16,26 +16,35 @@
     #videoContainer {
       position: relative;
       width: 100%;
-      height: 100vh;
-      background: black;
+      height: 100%;
+      overflow: hidden;
     }
 
-    iframe#videoFrame {
-      position: absolute;
-      top: 0;
-      left: 0;
+    video {
       width: 100%;
       height: 100%;
-      border: none;
-      z-index: 1;
-      pointer-events: none; /* Prevent clicking/interaction */
+      object-fit: cover;
+    }
+
+    #loaderOverlay {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.85);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: gold;
+      font-family: sans-serif;
+      font-size: 1.2em;
+      z-index: 10;
     }
 
     #muteButton {
       position: absolute;
       top: 10px;
       right: 10px;
-      z-index: 10;
+      z-index: 11;
       font-size: 1.5em;
       padding: 8px;
       background: rgba(0, 0, 0, 0.5);
@@ -56,7 +65,7 @@
       font-size: 1em;
       overflow: hidden;
       white-space: nowrap;
-      z-index: 10;
+      z-index: 11;
     }
 
     #scrollText {
@@ -77,30 +86,169 @@
 </head>
 <body>
   <div id="videoContainer">
-    <iframe
-      id="videoFrame"
-      src="https://www.livereacting.com/tools/mp4-player-embed?url=https%3A%2F%2Fcdn2.einthusan.io%2Fetv%2Fcontent%2FD7ret.mp4.m3u8%3Fe%3D1755861817%26md5%3DNFh4WL3rMuafA9t2mkGmXw"
-      allowfullscreen
-      allow="autoplay"
-    ></iframe>
-
+    <video id="videoPlayer" autoplay playsinline muted></video>
+    <div id="loaderOverlay">STARTS @ 04:00 PM IST</div>
     <button id="muteButton">🔇</button>
 
+    <!-- ✅ Scrolling Banner -->
     <div id="scrollBanner">
-      <div id="scrollText"> Now Playing: "Special Movie" — Coming Up Next: "Another Title" </div>
+      <div id="scrollText"> Now playing: "Title A" — Coming up next: "Title B"</div>
     </div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
   <script>
-    const muteBtn = document.getElementById("muteButton");
-    let isMuted = true;
+    let video = document.getElementById('videoPlayer');
+    let loader = document.getElementById('loaderOverlay');
+    let muteButton = document.getElementById('muteButton');
+    let hls = null;
+    let currentUrl = '';
+    let currentIndex = -1;
+    let channel = null;
+    let seekTimeout = null;
 
-    muteBtn.onclick = () => {
-      isMuted = !isMuted;
-      muteBtn.textContent = isMuted ? "🔇" : "🔊";
-      // We can't mute/unmute iframe player directly due to cross-origin restrictions
-      alert("Mute control is visual only due to iframe restrictions.");
-    };
+    function getPlaybackPosition(channel) {
+      const total = channel.durations.reduce((a, b) => a + b, 0);
+      const now = Math.floor(Date.now() / 1000) % total;
+      let offset = 0;
+      for (let i = 0; i < channel.durations.length; i++) {
+        if (now < offset + channel.durations[i]) {
+          return { index: i, time: now - offset };
+        }
+        offset += channel.durations[i];
+      }
+      return { index: 0, time: 0 };
+    }
+
+    function resetVideo() {
+      const newVideo = document.createElement('video');
+      newVideo.id = 'videoPlayer';
+      newVideo.autoplay = true;
+      newVideo.playsInline = true;
+      newVideo.muted = true;
+      newVideo.style.width = "100%";
+      newVideo.style.height = "100%";
+      newVideo.style.objectFit = "cover";
+      document.getElementById('videoContainer').replaceChild(newVideo, video);
+      video = newVideo;
+
+      attachMuteButtonLogic();
+      attachSeekLock();
+
+      return newVideo;
+    }
+
+    function loadStream(index, time) {
+      const url = channel.urls[index];
+      loader.style.display = 'flex';
+
+      if (hls) {
+        hls.destroy();
+        hls = null;
+      }
+
+      resetVideo();
+
+      if (Hls.isSupported()) {
+        hls = new Hls();
+        hls.loadSource(url);
+        hls.attachMedia(video);
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          video.currentTime = time;
+          video.play().catch(console.warn);
+        });
+        hls.on(Hls.Events.LEVEL_LOADED, () => {
+          loader.style.display = 'none';
+        });
+      } else {
+        video.src = url;
+        video.onloadeddata = () => {
+          video.currentTime = time;
+          video.play().catch(console.warn);
+          loader.style.display = 'none';
+        };
+      }
+    }
+
+    async function fetchChannel() {
+      try {
+        const response = await fetch('/channel.json?_=' + Date.now()); // cache-busting
+        return await response.json();
+      } catch (err) {
+        console.error("Failed to fetch channel.json", err);
+        return null;
+      }
+    }
+
+    async function syncPlayback() {
+      const newChannel = await fetchChannel();
+      if (!newChannel || !newChannel.urls.length) return;
+
+      const { index, time } = getPlaybackPosition(newChannel);
+      const newUrl = newChannel.urls[index];
+
+      if (index !== currentIndex || newUrl !== currentUrl) {
+        currentIndex = index;
+        currentUrl = newUrl;
+        channel = newChannel;
+        loadStream(index, time);
+        updateBanner(index, newChannel);
+      } else if (Math.abs(video.currentTime - time) > 3) {
+        video.currentTime = time;
+      }
+    }
+
+    function attachMuteButtonLogic() {
+      muteButton.textContent = video.muted ? '🔇' : '🔊';
+
+      muteButton.onclick = () => {
+        video.muted = !video.muted;
+        muteButton.textContent = video.muted ? '🔇' : '🔊';
+
+        if (!video.paused) {
+          video.play().catch(console.warn);
+        }
+      };
+    }
+
+    function attachSeekLock() {
+      video.addEventListener('seeking', () => {
+        clearTimeout(seekTimeout);
+        const { time: liveTime } = getPlaybackPosition(channel);
+        const currentTime = video.currentTime;
+        const diff = currentTime - liveTime;
+
+        console.log(`⏱️ Seeking diff: ${diff.toFixed(2)}s`);
+
+        if (diff > 3) {
+          console.log('⏩ Too far ahead — snapping back to live');
+          video.currentTime = liveTime;
+        } else if (diff < -3) {
+          console.log('⏪ Rewind detected — will return to live in 10s');
+          seekTimeout = setTimeout(() => {
+            console.log('🔁 Returning to live now');
+            video.currentTime = getPlaybackPosition(channel).time;
+          }, 10000);
+        }
+      });
+    }
+
+    function updateBanner(currentIndex, channel) {
+      const scrollText = document.getElementById('scrollText');
+      const currentTitle = channel.titles?.[currentIndex] || `Video ${currentIndex + 1}`;
+      const nextTitle = channel.titles?.[currentIndex + 1] || "Stay tuned...";
+      scrollText.textContent = `Now Playing: "${currentTitle}" — Coming Up Next: "${nextTitle}"`;
+    }
+
+    // Start sync loop every 5s
+    (function loop() {
+      syncPlayback();
+      setTimeout(loop, 5000);
+    })();
+
+    // Initial setup
+    attachMuteButtonLogic();
+    attachSeekLock();
   </script>
 </body>
 </html>
