@@ -1,10 +1,10 @@
 {
   "type": "m3u8",
-  "durations": [10265,8767],
-  "urls": [ "https://gt4s3g.cfglobalcdn.com/silverlight/secip/113295/133612/sgheOQ6BU_av_bY4V-H3pA/MTAxLjExOS4xNzEuMTM5/1755926672/hls-vod-s002/flv/api/files/videos/2025/08/19/1755585723vuuip.mp4.m3u8",
-    "https://f9rw3r.cfglobalcdn.com/silverlight/secip/113295/133612/JUnJeWpQH5DzfI9Dkjg4Mw/MTAxLjExOS4xNzEuMTM5/1755927171/hls-vod-s0013/flv/api/files/videos/2025/08/14/1755172081jbm1l.mp4.m3u8"
+  "durations": [8767],
+  "urls": [ "https://f9rw3r.cfglobalcdn.com/silverlight/secip/113295/133612/jHWP6mNjISBOQm4dzZv34Q/MTIwLjE5LjEzMi4xNjc=/1755942151/hls-vod-s0013/flv/api/files/videos/2025/08/14/1755172081jbm1l.mp4.m3u8"
+    
   ],
-    "titles": ["WWE RAW", "WAR 2"
+    "titles": ["WAR 2"
   ]
 }
 
