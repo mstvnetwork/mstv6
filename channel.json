@@ -2,7 +2,7 @@
   "type": "m3u8",
   "durations": [2382
   0],
-  "urls": "https://t9lr3d.cfglobalcdn.com/silverlight/secip/113295/133612/JJLFIc2-C6JtLkWjIv3Jiw/MTIwLjE5LjEzMi4xNjc=/1755951042/hls-vod-s0013/flv/api/files/videos/2025/06/27/1751002839lyrs7.mp4.m3u8"
+  "urls": ["https://t9lr3d.cfglobalcdn.com/silverlight/secip/113295/133612/JJLFIc2-C6JtLkWjIv3Jiw/MTIwLjE5LjEzMi4xNjc=/1755951042/hls-vod-s0013/flv/api/files/videos/2025/06/27/1751002839lyrs7.mp4.m3u8"
     
   ],
     "titles": ["ANDHERA"
