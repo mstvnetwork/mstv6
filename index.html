@@ -2,42 +2,69 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Cropped Player</title>
+    <title>Live Multi-Player</title>
     <style>
-        body { background-color: #000; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        body { background: #111; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; font-family: sans-serif; }
+        .controls { margin-bottom: 15px; display: flex; gap: 10px; align-items: center; }
+        
+        select, button { padding: 10px; font-size: 14px; background: #333; color: white; border: 1px solid #555; border-radius: 5px; cursor: pointer; }
+        button:hover { background: #444; border-color: #e50914; }
 
-        /* The 'Window' that shows only the video */
-        .crop-container {
-            width: 800px;  /* Width of the video player you want to see */
-            height: 450px; /* Height of the video player you want to see */
-            overflow: hidden;
-            position: relative;
-            border: 2px solid #333;
+        .player-window {
+            width: 800px; height: 500px; 
+            overflow: hidden; position: relative;
+            border: 2px solid #444; background: #000;
         }
 
-        /* The actual webpage shifted behind the window */
-        .crop-container iframe {
+        #main-iframe {
             position: absolute;
-            
-            /* ADJUST THESE VALUES to center the video */
-            top: -430px;  /* Moves the page UP to hide the top header */
-            left: -47px;  /* Moves the page LEFT to hide sidebars */
-            right:-500px;
-            
-            width: 1280px; /* Should match the original site's typical width */
-            height: 1000px;
+            width: 1280px; height: 1200px;
+            transition: all 0.3s ease; /* Smooth transition when switching crops */
         }
     </style>
 </head>
 <body>
 
-    <div class="crop-container">
-        <iframe 
-            src="https://tulnit.com/live/sony-tv-hd/" 
-            scrolling="no" 
-            frameborder="0">
-        </iframe>
+    <div class="controls">
+        <select id="channel-select" onchange="updatePlayer()">
+            <option value="https://tulnit.com/live/sony-tv-hd/" data-top="-430" data-left="-47">Sony TV HD</option>
+            <option value="https://tulnit.com/live/bollywood-plus/" data-top="-430" data-left="-47">Star Plus</option>
+            <option value="https://tulnit.com" data-top="-110" data-left="-30">Colors TV</option>
+        </select>
+
+        <!-- The Reset Button -->
+        <button onclick="updatePlayer()">🔄 Reload Stream</button>
     </div>
+
+    <div class="player-window">
+        <iframe id="main-iframe" src="https://tulnit.com" scrolling="no" frameborder="0"></iframe>
+    </div>
+
+    <script>
+        function updatePlayer() {
+            const selector = document.getElementById('channel-select');
+            const iframe = document.getElementById('main-iframe');
+            
+            // Get data from selected option
+            const selectedOption = selector.options[selector.selectedIndex];
+            const newSrc = selectedOption.value;
+            const newTop = selectedOption.getAttribute('data-top');
+            const newLeft = selectedOption.getAttribute('data-left');
+
+            // 1. Force reload by clearing src first (prevents caching issues)
+            iframe.src = "about:blank";
+            
+            // 2. Set new source and crop position
+            setTimeout(() => {
+                iframe.src = newSrc;
+                iframe.style.top = newTop + "px";
+                iframe.style.left = newLeft + "px";
+            }, 10);
+        }
+
+        // Initial setup on page load
+        window.onload = updatePlayer;
+    </script>
 
 </body>
 </html>
