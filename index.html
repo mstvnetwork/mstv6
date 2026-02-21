@@ -2,71 +2,100 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="referrer" content="no-referrer">
-
-    <title>Live Multi-Player</title>
+    <title>Universal Crypto Player</title>
+    <!-- Essential Video Libraries -->
+    <script src="https://cdn.dashjs.org"></script>
+    <script src="https://cdn.jsdelivr.net"></script>
     <style>
-        body { background: #111; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; font-family: sans-serif; }
-        .controls { margin-bottom: 15px; display: flex; gap: 10px; align-items: center; }
-        
-        select, button { padding: 10px; font-size: 14px; background: #333; color: white; border: 1px solid #555; border-radius: 5px; cursor: pointer; }
-        button:hover { background: #444; border-color: #e50914; }
-
-        .player-window {
-            width: 800px; height: 500px; 
-            overflow: hidden; position: relative;
-            border: 2px solid #444; background: #000;
-        }
-
-        #main-iframe {
-            position: absolute;
-            width: 1280px; height: 1200px;
-            transition: all 0.3s ease; /* Smooth transition when switching crops */
-        }
+        body { background: #0b0b0b; color: #fff; margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; font-family: 'Segoe UI', sans-serif; }
+        .player-container { width: 90%; max-width: 850px; background: #000; padding: 10px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); border: 1px solid #333; }
+        video { width: 100%; border-radius: 8px; aspect-ratio: 16/9; }
+        .controls { margin-top: 20px; width: 90%; max-width: 850px; display: flex; gap: 10px; }
+        select { flex-grow: 1; padding: 12px; background: #222; color: #fff; border: 1px solid #444; border-radius: 6px; cursor: pointer; font-size: 16px; }
+        button { padding: 12px 20px; background: #e50914; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        button:hover { background: #ff0a16; }
     </style>
 </head>
 <body>
 
-    <div class="controls">
-        <select id="channel-select" onchange="updatePlayer()">
-            <option value="https://tulnit.com/live/sony-tv-hd/" data-top="-430" data-left="-47">Sony TV HD</option>
-            <option value="https://tulnit.com/live/bollywood-plus/" data-top="-430" data-left="-47">Star Plus</option>
-            <option value="https://tulnit.com" data-top="-110" data-left="-30">Colors TV</option>
-        </select>
-
-        <!-- The Reset Button -->
-        <button onclick="updatePlayer()">🔄 Reload Stream</button>
+    <div class="player-container">
+        <video id="videoPlayer" controls autoplay crossorigin="anonymous"></video>
     </div>
 
-    <div class="player-window">
-        <iframe id="main-iframe" src="https://tulnit.com" scrolling="no" frameborder="0"></iframe>
+    <div class="controls">
+        <select id="channel-select" onchange="initPlayer()">
+            <!-- ENCRYPTED DASH CHANNEL (Using the keys you provided) -->
+            <option value="https://d1g8wgjurz8via.cloudfront.net" 
+                    data-type="dash" 
+                    data-keyid="4023613457774cbeb71a62c339970e63" 
+                    data-key="1c3e9fce5f014542be9cd1f749181204">
+                Zee Anmol (Encrypted)
+            </option>
+            
+            <!-- STANDARD HLS CHANNEL -->
+            <option value="https://your-sony-link.m3u8" 
+                    data-type="hls">
+                Sony TV (Standard)
+            </option>
+        </select>
+        
+        <button onclick="initPlayer()">🔄 Refresh</button>
     </div>
 
     <script>
-        function updatePlayer() {
-            const selector = document.getElementById('channel-select');
-            const iframe = document.getElementById('main-iframe');
-            
-            // Get data from selected option
-            const selectedOption = selector.options[selector.selectedIndex];
-            const newSrc = selectedOption.value;
-            const newTop = selectedOption.getAttribute('data-top');
-            const newLeft = selectedOption.getAttribute('data-left');
+        let dashPlayer;
+        let hlsPlayer;
 
-            // 1. Force reload by clearing src first (prevents caching issues)
-            iframe.src = "about:blank";
+        function initPlayer() {
+            const video = document.getElementById('videoPlayer');
+            const selector = document.getElementById('channel-select');
+            const option = selector.options[selector.selectedIndex];
             
-            // 2. Set new source and crop position
-            setTimeout(() => {
-                iframe.src = newSrc;
-                iframe.style.top = newTop + "px";
-                iframe.style.left = newLeft + "px";
-            }, 10);
+            const url = option.value;
+            const type = option.getAttribute('data-type');
+            const keyId = option.getAttribute('data-keyid');
+            const key = option.getAttribute('data-key');
+
+            // 1. Reset existing players
+            if (dashPlayer) { dashPlayer.destroy(); dashPlayer = null; }
+            if (hlsPlayer) { hlsPlayer.destroy(); hlsPlayer = null; }
+            video.src = "";
+
+            // 2. Load Encrypted or Standard DASH
+            if (type === "dash") {
+                dashPlayer = dashjs.MediaPlayer().create();
+                
+                // If keys exist, apply Protection Data (ClearKey)
+                if (keyId && key) {
+                    const protectionData = {
+                        "org.w3.clearkey": {
+                            "clearkeys": {}
+                        }
+                    };
+                    protectionData["org.w3.clearkey"]["clearkeys"][keyId] = key;
+                    dashPlayer.setProtectionData(protectionData);
+                }
+
+                dashPlayer.initialize(video, url, true);
+            } 
+            
+            // 3. Load Standard HLS
+            else if (type === "hls") {
+                if (Hls.isSupported()) {
+                    hlsPlayer = new Hls();
+                    hlsPlayer.loadSource(url);
+                    hlsPlayer.attachMedia(video);
+                    hlsPlayer.on(Hls.Events.MANIFEST_PARSED, () => video.play());
+                } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                    video.src = url;
+                }
+            }
         }
 
-        // Initial setup on page load
-        window.onload = updatePlayer;
+        // Start first channel on page load
+        window.onload = initPlayer;
     </script>
-
 </body>
 </html>
+
+
