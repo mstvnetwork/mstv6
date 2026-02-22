@@ -2,132 +2,90 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Universal Crypto Player</title>
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="no-referrer">
+    <title>Live Multi-Player (Bypass Mode)</title>
+    
+    <!-- 1. BYPASS SCRIPT: Helps load restricted iframes on GitHub Pages -->
     <script src="https://unpkg.com" type="module"></script>
 
-    <!-- Essential Video Libraries -->
-    <script src="https://cdn.dashjs.org"></script>
-    <script src="https://cdn.jsdelivr.net"></script>
     <style>
-        body { background: #0b0b0b; color: #fff; margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; font-family: 'Segoe UI', sans-serif; }
+        body { background: #0b0b0b; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; font-family: 'Segoe UI', sans-serif; }
         
-    /* This ensures the 'tube' expands into a video player shape */
-    .player-container {
-        width: 100%;
-        max-width: 800px;      /* Maximum width on desktop */
-        aspect-ratio: 16 / 9;  /* Forces a standard video shape */
-        background: #000;      /* Black background while loading */
-        margin: 20px auto;     /* Centers it on the page */
-        border: 2px solid #333;
-        position: relative;
-        overflow: hidden;      /* Keeps the iframe inside the box */
-    }
+        .controls { margin-bottom: 20px; display: flex; gap: 12px; align-items: center; z-index: 100; }
+        select, button { padding: 12px 18px; font-size: 15px; background: #222; color: white; border: 1px solid #444; border-radius: 8px; cursor: pointer; transition: 0.2s; }
+        button:hover { background: #e50914; border-color: #e50914; }
 
-    /* This makes sure the iframe fills the entire 16:9 container */
-    #bypass-frame {
-        width: 100% !important;
-        height: 100% !important;
-        border: none;
-    }
+        /* 2. PLAYER WINDOW: Fixed 16:9 shape to prevent 'tube' shrinking */
+        .player-window {
+            width: 90%;
+            max-width: 900px;
+            aspect-ratio: 16 / 9; 
+            overflow: hidden; 
+            position: relative;
+            border: 3px solid #333; 
+            background: #000;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+        }
 
+        /* 3. ZOOM & CROP: Adjusts the source page to focus on the video */
+        #main-iframe {
+            position: absolute;
+            width: 180%; /* Zoomed width */
+            height: 350%; /* Zoomed height */
+            border: none;
+            transition: opacity 0.3s ease;
+        }
 
-        video { width: 100%; border-radius: 8px; aspect-ratio: 16/9; }
-        .controls { margin-top: 20px; width: 90%; max-width: 850px; display: flex; gap: 10px; }
-        select { flex-grow: 1; padding: 12px; background: #222; color: #fff; border: 1px solid #444; border-radius: 6px; cursor: pointer; font-size: 16px; }
-        button { padding: 12px 20px; background: #e50914; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
-        button:hover { background: #ff0a16; }
+        .hint { margin-top: 15px; color: #888; font-size: 13px; }
     </style>
 </head>
 <body>
 
-<div class="player-container">
-    <!-- ONLY USE ONE AT A TIME -->
-    
-    <!-- OPTION A: The Bypass Iframe (to show the whole webpage) -->
-    <iframe id="bypass-frame" is="x-frame-bypass" src="https://tulnit.com" style="width:100%; height:100%;"></iframe>
-
-    <!-- OPTION B: The Custom Video Player (to play raw DASH/HLS links) -->
-    <!-- <video id="videoPlayer" controls autoplay crossorigin="anonymous" style="display:none;"></video> -->
-</div>
-
-    
-
-
     <div class="controls">
-        <select id="channel-select" onchange="initPlayer()">
-            <!-- ENCRYPTED DASH CHANNEL (Using the keys you provided) -->
-            <option value="https://d1g8wgjurz8via.cloudfront.net" 
-                    data-type="dash" 
-                    data-keyid="4023613457774cbeb71a62c339970e63" 
-                    data-key="1c3e9fce5f014542be9cd1f749181204">
-                Zee Anmol (Encrypted)
-            </option>
-            
-            <!-- STANDARD HLS CHANNEL -->
-            <option value="https://your-sony-link.m3u8" 
-                    data-type="hls">
-                Sony TV (Standard)
-            </option>
+        <select id="channel-select" onchange="updatePlayer()">
+            <!-- Custom data-top/left for each specific channel layout -->
+            <option value="https://tulnit.com/live/sony-tv-hd/" data-top="-380" data-left="-150">Sony TV HD</option>
+            <option value="https://tulnit.com" data-top="-380" data-left="-150">Star Plus</option>
+            <option value="https://tulnit.com" data-top="-380" data-left="-150">Colors TV</option>
         </select>
-        
-        <button onclick="initPlayer()">🔄 Refresh</button>
+
+        <button onclick="updatePlayer()">🔄 Reset Player</button>
     </div>
 
+    <div class="player-window">
+        <!-- 4. IS="X-FRAME-BYPASS": Triggers the proxy script -->
+        <iframe id="main-iframe" is="x-frame-bypass" src="about:blank" scrolling="no" frameborder="0"></iframe>
+    </div>
+
+    <p class="hint">Note: You must manually click the <b>Play</b> button inside the frame to start audio.</p>
+
     <script>
-        let dashPlayer;
-        let hlsPlayer;
-
-        function initPlayer() {
-            const video = document.getElementById('videoPlayer');
+        function updatePlayer() {
             const selector = document.getElementById('channel-select');
-            const option = selector.options[selector.selectedIndex];
+            const iframe = document.getElementById('main-iframe');
             
-            const url = option.value;
-            const type = option.getAttribute('data-type');
-            const keyId = option.getAttribute('data-keyid');
-            const key = option.getAttribute('data-key');
+            const selectedOption = selector.options[selector.selectedIndex];
+            const newSrc = selectedOption.value;
+            const newTop = selectedOption.getAttribute('data-top');
+            const newLeft = selectedOption.getAttribute('data-left');
 
-            // 1. Reset existing players
-            if (dashPlayer) { dashPlayer.destroy(); dashPlayer = null; }
-            if (hlsPlayer) { hlsPlayer.destroy(); hlsPlayer = null; }
-            video.src = "";
-
-            // 2. Load Encrypted or Standard DASH
-            if (type === "dash") {
-                dashPlayer = dashjs.MediaPlayer().create();
-                
-                // If keys exist, apply Protection Data (ClearKey)
-                if (keyId && key) {
-                    const protectionData = {
-                        "org.w3.clearkey": {
-                            "clearkeys": {}
-                        }
-                    };
-                    protectionData["org.w3.clearkey"]["clearkeys"][keyId] = key;
-                    dashPlayer.setProtectionData(protectionData);
-                }
-
-                dashPlayer.initialize(video, url, true);
-            } 
+            // Set opacity to 0 during reload for smoother transition
+            iframe.style.opacity = "0";
+            iframe.src = "about:blank";
             
-            // 3. Load Standard HLS
-            else if (type === "hls") {
-                if (Hls.isSupported()) {
-                    hlsPlayer = new Hls();
-                    hlsPlayer.loadSource(url);
-                    hlsPlayer.attachMedia(video);
-                    hlsPlayer.on(Hls.Events.MANIFEST_PARSED, () => video.play());
-                } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-                    video.src = url;
-                }
-            }
+            setTimeout(() => {
+                iframe.src = newSrc;
+                iframe.style.top = newTop + "px";
+                iframe.style.left = newLeft + "px";
+                iframe.style.opacity = "1";
+            }, 50);
         }
 
-        // Start first channel on page load
-        window.onload = initPlayer;
+        // Run on start
+        window.onload = updatePlayer;
     </script>
+
 </body>
 </html>
-
-
