@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <title>Universal Crypto Player</title>
+
+    <script src="https://unpkg.com" type="module"></script>
+
     <!-- Essential Video Libraries -->
     <script src="https://cdn.dashjs.org"></script>
     <script src="https://cdn.jsdelivr.net"></script>
@@ -19,8 +22,12 @@
 <body>
 
     <div class="player-container">
+        <iframe is="x-frame-bypass" src="https://tulnit.com"></iframe>
+
         <video id="videoPlayer" controls autoplay crossorigin="anonymous"></video>
     </div>
+    
+
 
     <div class="controls">
         <select id="channel-select" onchange="initPlayer()">
