@@ -4,81 +4,68 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="referrer" content="no-referrer">
-    <title>Zee TV HD - Netlify Edge Player</title>
+    <title>Zee TV HD - Netlify Fix</title>
     
-    <!-- DASH.js Library -->
-    <script src="https://cdn.dashjs.org/latest/dash.all.min.js"></script>
+    <!-- Load Dash.js Library First -->
+    <script src="https://cdn.dashjs.org"></script>
 
     <style>
-        body { 
-            background: #0b0b0b; color: #fff; margin: 0; 
-            display: flex; flex-direction: column; align-items: center; 
-            justify-content: center; min-height: 100vh; font-family: sans-serif; 
-        }
-        .player-container { 
-            width: 95%; max-width: 900px; 
-            background: #000; border: 2px solid #333; 
-            border-radius: 12px; overflow: hidden; 
-            box-shadow: 0 20px 50px rgba(0,0,0,0.9);
-        }
-        video { width: 100%; display: block; aspect-ratio: 16/9; }
-        .info-panel { padding: 20px; text-align: center; }
-        .status-badge { 
-            padding: 6px 15px; border-radius: 20px; 
-            background: #e50914; font-size: 14px; font-weight: bold; 
-            transition: background 0.5s ease;
-        }
-        .instructions { margin-top: 15px; color: #888; font-size: 13px; }
+        body { background: #000; color: #fff; margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; font-family: sans-serif; }
+        .player-container { width: 95%; max-width: 850px; border: 2px solid #333; border-radius: 10px; overflow: hidden; background: #000; }
+        video { width: 100%; aspect-ratio: 16/9; display: block; }
+        .status { padding: 15px; text-align: center; font-size: 14px; background: #111; color: #e50914; font-weight: bold; }
     </style>
 </head>
 <body>
 
     <div class="player-container">
-        <!-- Autoplay requires 'muted' -->
         <video id="videoPlayer" controls autoplay muted playsinline crossorigin="anonymous"></video>
-        <div class="info-panel">
-            <span class="status-badge" id="status">CONNECTING VIA EDGE...</span>
-            <div class="instructions">If audio is missing, click the player to Unmute.</div>
-        </div>
+        <div class="status" id="status">CONNECTING TO EDGE PROXY...</div>
     </div>
 
     <script>
         function initPlayer() {
             const video = document.querySelector("#videoPlayer");
-            const status = document.querySelector("#status");
+            const statusBox = document.querySelector("#status");
             
-            // Ensure the '?' is included as seen in your cURL
-const rawUrl = "https://d1g8wgjurz8via.cloudfront.net/bpk-tv/Zeetv/default/main.mpd?";
-const proxiedUrl = "/proxy?url=" + encodeURIComponent(rawUrl);
+            // 1. YOUR CURL URL (Include the ?)
+            const rawUrl = "https://d1g8wgjurz8via.cloudfront.net?";
+            
+            // 2. YOUR NETLIFY PROXY
+            const proxiedUrl = "/proxy?url=" + encodeURIComponent(rawUrl);
 
-// Keep your keys exactly as they are
-const protectionData = {
-    "org.w3.clearkey": {
-        "clearkeys": {
-            "ed068cf84f0640ccbc7c0e395c0a272e": "bb722190f2bb446391020411a7d0828b"
-        }
-    }
-};
+            // 3. CREATE THE PLAYER
+            const player = dashjs.MediaPlayer().create();
 
-player.setProtectionData(protectionData);
-player.initialize(video, proxiedUrl, true);
+            // 4. APPLY KEYS (Fixed the 'player is not defined' error)
+            const protectionData = {
+                "org.w3.clearkey": {
+                    "clearkeys": {
+                        "ed068cf84f0640ccbc7c0e395c0a272e": "bb722190f2bb446391020411a7d0828b"
+                    }
+                }
+            };
 
+            player.setProtectionData(protectionData);
+            
+            // 5. START
+            player.initialize(video, proxiedUrl, true);
 
-            // Success Event
             player.on(dashjs.MediaPlayer.events.STREAM_INITIALIZED, function() {
-                status.innerText = "LIVE - ZEE TV HD";
-                status.style.background = "#008000";
+                statusBox.innerText = "LIVE - ZEE TV HD";
+                statusBox.style.color = "#00ff00";
             });
 
-            // Error Event
             player.on(dashjs.MediaPlayer.events.ERROR, function(e) {
-                status.innerText = "STREAM ERROR - CHECK KEYS";
-                console.error("Netlify Edge Error:", e);
+                statusBox.innerText = "STREAM ERROR: CHECK PROXY LOGS";
+                console.error("Dash Error:", e);
             });
         }
 
+        // Initialize when the page is ready
         document.addEventListener("DOMContentLoaded", initPlayer);
     </script>
 </body>
 </html>
+
 
