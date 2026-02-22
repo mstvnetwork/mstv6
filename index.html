@@ -3,78 +3,85 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- Hides GitHub Referrer to help bypass 'Access Denied' -->
+    <!-- Hides GitHub Referrer to help bypass security blocks -->
     <meta name="referrer" content="no-referrer">
-    <title>Zee TV HD - Direct Test Player</title>
+    <title>Zee TV HD - Final Proxy Player</title>
     
-    <!-- Official DASH.js Library for encrypted streams -->
-    <script src="https://cdn.dashjs.org"></script>
+    <!-- Industry-standard DASH.js library -->
+    <script src="https://cdn.dashjs.org/latest/dash.all.min.js"></script>
 
     <style>
         body { 
-            background: #000; color: #fff; margin: 0; 
+            background: #0b0b0b; color: #fff; margin: 0; 
             display: flex; flex-direction: column; align-items: center; 
-            justify-content: center; height: 100vh; font-family: sans-serif; 
+            justify-content: center; min-height: 100vh; font-family: sans-serif; 
         }
         .player-container { 
             width: 90%; max-width: 900px; 
-            background: #111; border: 2px solid #333; 
+            background: #000; border: 2px solid #333; 
             border-radius: 12px; overflow: hidden; 
             box-shadow: 0 20px 50px rgba(0,0,0,0.9);
         }
         video { width: 100%; display: block; aspect-ratio: 16/9; }
-        .status-bar { padding: 15px; background: #222; text-align: center; font-size: 14px; }
-        .status-tag { color: #e50914; font-weight: bold; }
+        .info-panel { padding: 20px; text-align: center; }
+        .status-badge { 
+            padding: 5px 12px; border-radius: 20px; 
+            background: #e50914; font-size: 14px; font-weight: bold; 
+        }
+        .instructions { margin-top: 15px; color: #888; font-size: 13px; }
     </style>
 </head>
 <body>
 
     <div class="player-container">
-        <!-- 'muted' helps bypass browser autoplay blocks -->
-        <video id="zeePlayer" controls autoplay muted crossorigin="anonymous"></video>
-        <div class="status-bar">
-            Status: <span id="status" class="status-tag">Initialising...</span>
+        <!-- Muted attribute is required for browser autoplay -->
+        <video id="videoPlayer" controls autoplay muted playsinline crossorigin="anonymous"></video>
+        <div class="info-panel">
+            <span class="status-badge" id="status">CONNECTING...</span>
+            <div class="instructions">If video is frozen, click the player to manually trigger playback.</div>
         </div>
     </div>
 
     <script>
-        // YOUR DATA
-        const streamUrl = "https://d1g8wgjurz8via.cloudfront.net";
-        const keyID = "ed068cf84f0640ccbc7c0e395c0a272e";
-        const key = "bb722190f2bb446391020411a7d0828b";
-
-        function startPlayer() {
-            const video = document.querySelector("#zeePlayer");
+        function initPlayer() {
+            const video = document.querySelector("#videoPlayer");
             const status = document.querySelector("#status");
-            const player = dashjs.MediaPlayer().create();
+            
+            // 1. ORIGINAL URL
+            const rawUrl = "https://d1g8wgjurz8via.cloudfront.net";
+            
+            // 2. CORS PROXY: Prefixes the URL to bypass 'Access Denied' blocks
+            const proxiedUrl = "https://corsproxy.io?" + encodeURIComponent(rawUrl);
 
-            // Setup Decryption Keys (ClearKey DRM)
+            // 3. DRM KEYS: Decrypts the video track
             const protectionData = {
                 "org.w3.clearkey": {
-                    "clearkeys": {}
+                    "clearkeys": {
+                        "ed068cf84f0640ccbc7c0e395c0a272e": "bb722190f2bb446391020411a7d0828b"
+                    }
                 }
             };
-            protectionData["org.w3.clearkey"]["clearkeys"][keyID] = key;
 
+            const player = dashjs.MediaPlayer().create();
             player.setProtectionData(protectionData);
             
-            // Initialize Player
-            player.initialize(video, streamUrl, true);
+            // 4. INITIALISE
+            player.initialize(video, proxiedUrl, true);
 
+            // Success Handler
             player.on(dashjs.MediaPlayer.events.STREAM_INITIALIZED, function() {
-                status.innerText = "Playing (Zee TV HD)";
-                status.style.color = "#00ff00";
+                status.innerText = "LIVE - ZEE TV HD";
+                status.style.background = "#008000";
             });
 
+            // Error Handler
             player.on(dashjs.MediaPlayer.events.ERROR, function(e) {
-                status.innerText = "Error: Access Denied or Expired Key";
-                status.style.color = "#ff0000";
-                console.error("Dash Error:", e);
+                status.innerText = "STREAM BLOCKED";
+                console.error("Playback Error:", e);
             });
         }
 
-        window.onload = startPlayer;
+        document.addEventListener("DOMContentLoaded", initPlayer);
     </script>
 </body>
 </html>
-
