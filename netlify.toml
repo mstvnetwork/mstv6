@@ -1,3 +1,4 @@
 [[edge_functions]]
-  function = "proxy"
-  path = "/proxy"
+  path = "/proxy-stream/*"
+  function = "stream-proxy"
+
