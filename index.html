@@ -3,24 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="referrer" content="no-referrer">
-    <title>Zee TV HD - Netlify Fix</title>
+    <title>Zee TV HD - Live Proxy</title>
     
-    <!-- Load Dash.js Library First -->
+    <!-- Using official Dash.js from CDN -->
     <script src="https://cdn.dashjs.org"></script>
 
     <style>
         body { background: #000; color: #fff; margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; font-family: sans-serif; }
-        .player-container { width: 95%; max-width: 850px; border: 2px solid #333; border-radius: 10px; overflow: hidden; background: #000; }
+        .player-container { width: 95%; max-width: 850px; border: 2px solid #333; border-radius: 10px; overflow: hidden; background: #000; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
         video { width: 100%; aspect-ratio: 16/9; display: block; }
-        .status { padding: 15px; text-align: center; font-size: 14px; background: #111; color: #e50914; font-weight: bold; }
+        .status { padding: 15px; text-align: center; font-size: 14px; background: #111; color: #ff9800; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
     </style>
 </head>
 <body>
 
     <div class="player-container">
-        <video id="videoPlayer" controls autoplay muted playsinline crossorigin="anonymous"></video>
-        <div class="status" id="status">CONNECTING TO EDGE PROXY...</div>
+        <video id="videoPlayer" controls autoplay muted playsinline></video>
+        <div class="status" id="status">INITIALIZING EDGE PROXY...</div>
     </div>
 
     <script>
@@ -28,16 +27,12 @@
             const video = document.querySelector("#videoPlayer");
             const statusBox = document.querySelector("#status");
             
-            // 1. YOUR CURL URL (Include the ?)
-            const rawUrl = "https://d1g8wgjurz8via.cloudfront.net?";
-            
-            // 2. YOUR NETLIFY PROXY
-            const proxiedUrl = "/proxy?url=" + encodeURIComponent(rawUrl);
+            // This path triggers the Netlify Edge Function
+            const manifestUrl = "/proxy-stream/bpk-tv/Zeetv/default/main.mpd";
 
-            // 3. CREATE THE PLAYER
             const player = dashjs.MediaPlayer().create();
 
-            // 4. APPLY KEYS (Fixed the 'player is not defined' error)
+            // ClearKey DRM Authorization
             const protectionData = {
                 "org.w3.clearkey": {
                     "clearkeys": {
@@ -48,24 +43,25 @@
 
             player.setProtectionData(protectionData);
             
-            // 5. START
-            player.initialize(video, proxiedUrl, true);
+            // Standard Dash.js initialization
+            player.initialize(video, manifestUrl, true);
 
             player.on(dashjs.MediaPlayer.events.STREAM_INITIALIZED, function() {
-                statusBox.innerText = "LIVE - ZEE TV HD";
+                statusBox.innerText = "LIVE - ZEE TV HD (SECURE PROXY)";
                 statusBox.style.color = "#00ff00";
             });
 
             player.on(dashjs.MediaPlayer.events.ERROR, function(e) {
-                statusBox.innerText = "STREAM ERROR: CHECK PROXY LOGS";
-                console.error("Dash Error:", e);
+                statusBox.innerText = "STREAM ERROR: CHECK CONSOLE";
+                statusBox.style.color = "#ff0000";
+                console.error("Detailed Dash Error:", e);
             });
         }
 
-        // Initialize when the page is ready
         document.addEventListener("DOMContentLoaded", initPlayer);
     </script>
 </body>
 </html>
+
 
 
