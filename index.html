@@ -3,11 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- Hides GitHub Referrer to help bypass security blocks -->
     <meta name="referrer" content="no-referrer">
-    <title>Zee TV HD - Final Proxy Player</title>
+    <title>Zee TV HD - Netlify Edge Player</title>
     
-    <!-- Industry-standard DASH.js library -->
+    <!-- DASH.js Library -->
     <script src="https://cdn.dashjs.org/latest/dash.all.min.js"></script>
 
     <style>
@@ -17,7 +16,7 @@
             justify-content: center; min-height: 100vh; font-family: sans-serif; 
         }
         .player-container { 
-            width: 90%; max-width: 900px; 
+            width: 95%; max-width: 900px; 
             background: #000; border: 2px solid #333; 
             border-radius: 12px; overflow: hidden; 
             box-shadow: 0 20px 50px rgba(0,0,0,0.9);
@@ -25,8 +24,9 @@
         video { width: 100%; display: block; aspect-ratio: 16/9; }
         .info-panel { padding: 20px; text-align: center; }
         .status-badge { 
-            padding: 5px 12px; border-radius: 20px; 
+            padding: 6px 15px; border-radius: 20px; 
             background: #e50914; font-size: 14px; font-weight: bold; 
+            transition: background 0.5s ease;
         }
         .instructions { margin-top: 15px; color: #888; font-size: 13px; }
     </style>
@@ -34,11 +34,11 @@
 <body>
 
     <div class="player-container">
-        <!-- Muted attribute is required for browser autoplay -->
+        <!-- Autoplay requires 'muted' -->
         <video id="videoPlayer" controls autoplay muted playsinline crossorigin="anonymous"></video>
         <div class="info-panel">
-            <span class="status-badge" id="status">CONNECTING...</span>
-            <div class="instructions">If video is frozen, click the player to manually trigger playback.</div>
+            <span class="status-badge" id="status">CONNECTING VIA EDGE...</span>
+            <div class="instructions">If audio is missing, click the player to Unmute.</div>
         </div>
     </div>
 
@@ -47,11 +47,11 @@
             const video = document.querySelector("#videoPlayer");
             const status = document.querySelector("#status");
             
-            // 1. ORIGINAL URL
+            // 1. FULL MANIFEST URL (Fixed path)
             const rawUrl = "https://d1g8wgjurz8via.cloudfront.net";
             
-            // 2. CORS PROXY: Prefixes the URL to bypass 'Access Denied' blocks
-            const proxiedUrl = "https://corsproxy.io?" + encodeURIComponent(rawUrl);
+            // 2. NETLIFY EDGE PROXY: Points to your local /proxy function
+            const proxiedUrl = "/proxy?url=" + encodeURIComponent(rawUrl);
 
             // 3. DRM KEYS: Decrypts the video track
             const protectionData = {
@@ -63,21 +63,23 @@
             };
 
             const player = dashjs.MediaPlayer().create();
+            
+            // Apply Protection (Keys)
             player.setProtectionData(protectionData);
             
-            // 4. INITIALISE
+            // Initialize Player with your Proxy
             player.initialize(video, proxiedUrl, true);
 
-            // Success Handler
+            // Success Event
             player.on(dashjs.MediaPlayer.events.STREAM_INITIALIZED, function() {
                 status.innerText = "LIVE - ZEE TV HD";
                 status.style.background = "#008000";
             });
 
-            // Error Handler
+            // Error Event
             player.on(dashjs.MediaPlayer.events.ERROR, function(e) {
-                status.innerText = "STREAM BLOCKED";
-                console.error("Playback Error:", e);
+                status.innerText = "STREAM ERROR - CHECK KEYS";
+                console.error("Netlify Edge Error:", e);
             });
         }
 
@@ -85,3 +87,4 @@
     </script>
 </body>
 </html>
+
