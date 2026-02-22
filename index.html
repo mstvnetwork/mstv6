@@ -2,84 +2,79 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Hides GitHub Referrer to help bypass 'Access Denied' -->
     <meta name="referrer" content="no-referrer">
-    <title>Ultimate Live Player</title>
+    <title>Zee TV HD - Direct Test Player</title>
+    
+    <!-- Official DASH.js Library for encrypted streams -->
     <script src="https://cdn.dashjs.org"></script>
-    <script src="https://cdn.jsdelivr.net"></script>
+
     <style>
-        body { background: #000; color: #fff; margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; font-family: sans-serif; }
-        .player-box { width: 90%; max-aspect-ratio: 16/9; max-width: 900px; border: 2px solid #444; border-radius: 10px; overflow: hidden; background: #111; }
-        video { width: 100%; display: block; }
-        .controls { margin-top: 15px; width: 90%; max-width: 900px; display: flex; gap: 10px; }
-        select { flex: 1; padding: 12px; background: #222; color: #fff; border: 1px solid #555; border-radius: 5px; cursor: pointer; }
-        button { padding: 12px 20px; background: #e50914; color: #fff; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        body { 
+            background: #000; color: #fff; margin: 0; 
+            display: flex; flex-direction: column; align-items: center; 
+            justify-content: center; height: 100vh; font-family: sans-serif; 
+        }
+        .player-container { 
+            width: 90%; max-width: 900px; 
+            background: #111; border: 2px solid #333; 
+            border-radius: 12px; overflow: hidden; 
+            box-shadow: 0 20px 50px rgba(0,0,0,0.9);
+        }
+        video { width: 100%; display: block; aspect-ratio: 16/9; }
+        .status-bar { padding: 15px; background: #222; text-align: center; font-size: 14px; }
+        .status-tag { color: #e50914; font-weight: bold; }
     </style>
 </head>
 <body>
 
-    <div class="player-box">
-        <video id="videoPlayer" controls autoplay crossorigin="anonymous"></video>
-    </div>
-
-    <div class="controls">
-        <select id="channel-select" onchange="loadChannel()">
-            <!-- ZEE TV (Using the keys you just found) -->
-            <option value="https://d1g8wgjurz8via.cloudfront.net" 
-                    data-type="dash" 
-                    data-keyid="ed068cf84f0640ccbc7c0e395c0a272e" 
-                    data-key="bb722190f2bb446391020411a7d0828b">
-                Zee TV HD (Direct)
-            </option>
-            
-            <!-- ADD OTHER CHANNELS HERE -->
-            <option value="https://tulnit.com" data-type="iframe">
-                Sony TV (Iframe Backup)
-            </option>
-        </select>
-        <button onclick="loadChannel()">🔄 Refresh</button>
+    <div class="player-container">
+        <!-- 'muted' helps bypass browser autoplay blocks -->
+        <video id="zeePlayer" controls autoplay muted crossorigin="anonymous"></video>
+        <div class="status-bar">
+            Status: <span id="status" class="status-tag">Initialising...</span>
+        </div>
     </div>
 
     <script>
-        let dashPlayer;
-        let hlsPlayer;
+        // YOUR DATA
+        const streamUrl = "https://d1g8wgjurz8via.cloudfront.net";
+        const keyID = "ed068cf84f0640ccbc7c0e395c0a272e";
+        const key = "bb722190f2bb446391020411a7d0828b";
 
-        function loadChannel() {
-            const video = document.getElementById('videoPlayer');
-            const selector = document.getElementById('channel-select');
-            const opt = selector.options[selector.selectedIndex];
+        function startPlayer() {
+            const video = document.querySelector("#zeePlayer");
+            const status = document.querySelector("#status");
+            const player = dashjs.MediaPlayer().create();
+
+            // Setup Decryption Keys (ClearKey DRM)
+            const protectionData = {
+                "org.w3.clearkey": {
+                    "clearkeys": {}
+                }
+            };
+            protectionData["org.w3.clearkey"]["clearkeys"][keyID] = key;
+
+            player.setProtectionData(protectionData);
             
-            const url = opt.value;
-            const type = opt.getAttribute('data-type');
-            const kid = opt.getAttribute('data-keyid');
-            const key = opt.getAttribute('data-key');
+            // Initialize Player
+            player.initialize(video, streamUrl, true);
 
-            // Reset existing players
-            if (dashPlayer) { dashPlayer.destroy(); dashPlayer = null; }
-            if (hlsPlayer) { hlsPlayer.destroy(); hlsPlayer = null; }
-            video.src = "";
+            player.on(dashjs.MediaPlayer.events.STREAM_INITIALIZED, function() {
+                status.innerText = "Playing (Zee TV HD)";
+                status.style.color = "#00ff00";
+            });
 
-            if (type === "dash") {
-                dashPlayer = dashjs.MediaPlayer().create();
-                
-                // Add your ClearKey Protection
-                if (kid && key) {
-                    const protData = { "org.w3.clearkey": { "clearkeys": {} } };
-                    protData["org.w3.clearkey"]["clearkeys"][kid] = key;
-                    dashPlayer.setProtectionData(protData);
-                }
-
-                dashPlayer.initialize(video, url, true);
-            } 
-            else if (type === "hls") {
-                if (Hls.isSupported()) {
-                    hlsPlayer = new Hls();
-                    hlsPlayer.loadSource(url);
-                    hlsPlayer.attachMedia(video);
-                }
-            }
+            player.on(dashjs.MediaPlayer.events.ERROR, function(e) {
+                status.innerText = "Error: Access Denied or Expired Key";
+                status.style.color = "#ff0000";
+                console.error("Dash Error:", e);
+            });
         }
 
-        window.onload = loadChannel;
+        window.onload = startPlayer;
     </script>
 </body>
 </html>
+
