@@ -28,7 +28,7 @@
             const statusBox = document.querySelector("#status");
             
             // This MUST match the path in your netlify.toml
-            const manifestUrl = "/proxy-stream/bpk-tv/Zeetv/default/main.mpd";
+            const manifestUrl = "https://d1g8wgjurz8via.cloudfront.net/bpk-tv/Zeetv/default/main.mpd?";
 
             if (typeof dashjs === "undefined") {
                 statusBox.innerText = "ERROR: DASH.JS NOT LOADED";
