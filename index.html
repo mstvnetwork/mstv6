@@ -21,11 +21,16 @@
 </head>
 <body>
 
-    <div class="player-container">
-        <iframe is="x-frame-bypass" src="https://tulnit.com"></iframe>
+<div class="player-container">
+    <!-- ONLY USE ONE AT A TIME -->
+    
+    <!-- OPTION A: The Bypass Iframe (to show the whole webpage) -->
+    <iframe id="bypass-frame" is="x-frame-bypass" src="https://tulnit.com" style="width:100%; height:100%;"></iframe>
 
-        <video id="videoPlayer" controls autoplay crossorigin="anonymous"></video>
-    </div>
+    <!-- OPTION B: The Custom Video Player (to play raw DASH/HLS links) -->
+    <!-- <video id="videoPlayer" controls autoplay crossorigin="anonymous" style="display:none;"></video> -->
+</div>
+
     
 
 
