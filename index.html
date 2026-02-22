@@ -47,28 +47,22 @@
             const video = document.querySelector("#videoPlayer");
             const status = document.querySelector("#status");
             
-            // 1. FULL MANIFEST URL (Fixed path)
-            const rawUrl = "https://d1g8wgjurz8via.cloudfront.net";
-            
-            // 2. NETLIFY EDGE PROXY: Points to your local /proxy function
-            const proxiedUrl = "/proxy?url=" + encodeURIComponent(rawUrl);
+            // Ensure the '?' is included as seen in your cURL
+const rawUrl = "https://d1g8wgjurz8via.cloudfront.net/bpk-tv/Zeetv/default/main.mpd?";
+const proxiedUrl = "/proxy?url=" + encodeURIComponent(rawUrl);
 
-            // 3. DRM KEYS: Decrypts the video track
-            const protectionData = {
-                "org.w3.clearkey": {
-                    "clearkeys": {
-                        "ed068cf84f0640ccbc7c0e395c0a272e": "bb722190f2bb446391020411a7d0828b"
-                    }
-                }
-            };
+// Keep your keys exactly as they are
+const protectionData = {
+    "org.w3.clearkey": {
+        "clearkeys": {
+            "ed068cf84f0640ccbc7c0e395c0a272e": "bb722190f2bb446391020411a7d0828b"
+        }
+    }
+};
 
-            const player = dashjs.MediaPlayer().create();
-            
-            // Apply Protection (Keys)
-            player.setProtectionData(protectionData);
-            
-            // Initialize Player with your Proxy
-            player.initialize(video, proxiedUrl, true);
+player.setProtectionData(protectionData);
+player.initialize(video, proxiedUrl, true);
+
 
             // Success Event
             player.on(dashjs.MediaPlayer.events.STREAM_INITIALIZED, function() {
