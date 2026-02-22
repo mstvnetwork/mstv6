@@ -1,71 +1,56 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zee TV HD - Live Proxy</title>
-    
-    <!-- Using a more reliable CDN link for Dash.js -->
-    <script src="https://cdnjs.cloudflare.com"></script>
-
+    <title>Zee TV HD Proxy</title>
+    <!-- Use a reliable, direct CDN link -->
+    <script src="https://cdn.jsdelivr.net"></script>
     <style>
         body { background: #000; color: #fff; margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; font-family: sans-serif; }
-        .player-container { width: 95%; max-width: 850px; border: 2px solid #333; border-radius: 10px; overflow: hidden; background: #000; }
-        video { width: 100%; aspect-ratio: 16/9; display: block; }
-        .status { padding: 15px; text-align: center; font-size: 14px; background: #111; color: #ff9800; font-weight: bold; }
+        #videoPlayer { width: 90%; max-width: 800px; aspect-ratio: 16/9; background: #111; }
+        #status { margin-top: 15px; font-weight: bold; color: #ff9800; }
     </style>
 </head>
 <body>
-
-    <div class="player-container">
-        <video id="videoPlayer" controls autoplay muted playsinline></video>
-        <div class="status" id="status">INITIALIZING...</div>
-    </div>
+    <video id="videoPlayer" controls autoplay muted playsinline></video>
+    <div id="status">CHECKING PROXY...</div>
 
     <script>
-        function startPlayer() {
+        window.onload = function() {
             const video = document.querySelector("#videoPlayer");
-            const statusBox = document.querySelector("#status");
+            const status = document.querySelector("#status");
             
-            // This MUST match the path in your netlify.toml
-            const manifestUrl = "https://d1g8wgjurz8via.cloudfront.net/bpk-tv/Zeetv/default/main.mpd?";
+            // The Proxy URL
+            const manifestUrl = "/proxy-stream/bpk-tv/Zeetv/default/main.mpd";
 
             if (typeof dashjs === "undefined") {
-                statusBox.innerText = "ERROR: DASH.JS NOT LOADED";
+                status.innerText = "ERROR: DASH.JS LIBRARY BLOCKED (CORB/CSP)";
+                status.style.color = "red";
                 return;
             }
 
             const player = dashjs.MediaPlayer().create();
-
+            
             // ClearKey DRM
-            const protectionData = {
+            player.setProtectionData({
                 "org.w3.clearkey": {
                     "clearkeys": {
                         "ed068cf84f0640ccbc7c0e395c0a272e": "bb722190f2bb446391020411a7d0828b"
                     }
                 }
-            };
+            });
 
-            player.setProtectionData(protectionData);
             player.initialize(video, manifestUrl, true);
 
-            player.on(dashjs.MediaPlayer.events.STREAM_INITIALIZED, function() {
-                statusBox.innerText = "LIVE - ZEE TV HD";
-                statusBox.style.color = "#00ff00";
+            player.on(dashjs.MediaPlayer.events.STREAM_INITIALIZED, () => {
+                status.innerText = "LIVE: ZEE TV HD";
+                status.style.color = "lime";
             });
 
-            player.on(dashjs.MediaPlayer.events.ERROR, function(e) {
-                statusBox.innerText = "STREAM ERROR: CHECK CONSOLE";
+            player.on(dashjs.MediaPlayer.events.ERROR, (e) => {
+                status.innerText = "STREAM ERROR: CHECK CONSOLE";
                 console.error("Dash Error:", e);
             });
-        }
-
-        // Wait for both DOM and external Scripts to load
-        window.onload = startPlayer;
+        };
     </script>
 </body>
 </html>
-
-
-
-
