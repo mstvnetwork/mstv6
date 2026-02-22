@@ -2,23 +2,24 @@ export default async (request, context) => {
   const url = new URL(request.url);
   const targetUrl = url.searchParams.get("url");
 
-  if (!targetUrl) {
-    return new Response("Missing URL parameter", { status: 400 });
-  }
+  if (!targetUrl) return new Response("Missing URL", { status: 400 });
 
-  // 1. Fetch the video data with "Fake" headers
+  // MATCHING THE CURL HEADERS EXACTLY
   const response = await fetch(targetUrl, {
     headers: {
-      "Referer": "https://tulnit.com",
-      "Origin": "https://tulnit.com",
-      "User-Agent": request.headers.get("user-agent"),
+      "accept": "*/*",
+      "accept-language": "en-AU,en-GB;q=0.9,en-US;q=0.8,en;q=0.7",
+      "origin": "https://southlive.net",
+      "referer": "https://southlive.net/",
+      "user-agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Mobile Safari/537.36",
+      "sec-ch-ua-platform": '"Android"',
+      "sec-fetch-dest": "empty",
+      "sec-fetch-mode": "cors",
+      "sec-fetch-site": "cross-site"
     },
   });
 
-  // 2. Prepare the response to send back to your player
   const newHeaders = new Headers(response.headers);
-  
-  // 3. SECRECY: Add CORS headers so your browser allows the video to play
   newHeaders.set("Access-Control-Allow-Origin", "*");
   newHeaders.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
 
@@ -30,4 +31,3 @@ export default async (request, context) => {
 };
 
 export const config = { path: "/proxy" };
-
