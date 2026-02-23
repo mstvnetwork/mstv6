@@ -53,8 +53,17 @@
         shaka.polyfill.installAll();
         const video = document.getElementById('video');
         player = new shaka.Player(video);
+        // Add this inside your initApp function in index.html
+player.getNetworkingEngine().registerRequestFilter((type, request) => {
+    // If Shaka tries to fetch segments from Amazon, redirect them through your Worker
+    if (type === shaka.net.NetworkingEngine.RequestType.SEGMENT && request.uris[0].includes('cloudfront.net')) {
+        const originalUri = request.uris[0];
+        const segmentPath = originalUri.split('/').slice(3).join('/');
+        request.uris = [workerBase + "/play/ch3/" + segmentPath];
+    }
+});
 
-        // Replace the old player.configure in your index.html with this:
+// Ensure your DRM keys are still there
 player.configure({
   drm: {
     clearKeys: {
@@ -63,8 +72,7 @@ player.configure({
   }
 });
 
-
-        video.addEventListener('playing', () => document.getElementById('loader').style.display = 'none');
+video.advideovideovideovideo.addEventListener('playing', () => document.getElementById('loader').style.display = 'none');
         loadChannel('1');
     }
 
