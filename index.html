@@ -9,9 +9,13 @@
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; }
         #video-container, #iframe-container { width: 100%; height: 100vh; display: none; }
         video, iframe { width: 100%; height: 100%; border: none; }
+        
+        /* Navigation Buttons */
         .nav { position: absolute; top: 15px; left: 15px; z-index: 100; display: flex; gap: 8px; }
         .btn { background: rgba(30, 30, 30, 0.8); color: #fff; border: 1px solid #444; padding: 10px 15px; cursor: pointer; border-radius: 6px; font-weight: bold; transition: 0.2s; }
         .btn:hover { background: #e91e63; border-color: #fff; }
+
+        /* Loading Spinner */
         #loader { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 50; display: flex; flex-direction: column; align-items: center; }
         .spinner { width: 50px; height: 50px; border: 5px solid rgba(255, 255, 255, 0.1); border-top: 5px solid #e91e63; border-radius: 50%; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
@@ -39,76 +43,51 @@
         <iframe id="external-player" allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe>
     </div>
 
-<script>
-    const workerBase = "https://my-proxy.mchoudhry482.workers.dev";
-    let player;
+    <script>
+        const workerBase = "https://my-proxy.mchoudhry482.workers.dev";
+        let player;
 
-    async function initApp() {
-        shaka.polyfill.installAll();
-        if (!shaka.Player.isBrowserSupported()) {
-            alert('Browser not supported!');
-            return;
+        async function initApp() {
+            shaka.polyfill.installAll();
+            const video = document.getElementById('video');
+            player = new shaka.Player(video);
+
+            // Hide loader when video actually starts playing
+            video.addEventListener('playing', () => document.getElementById('loader').style.display = 'none');
+            
+            loadChannel('1');
         }
 
-        const video = document.getElementById('video');
-        player = new shaka.Player(video);
+        async function loadChannel(id) {
+            const loader = document.getElementById('loader');
+            const videoContainer = document.getElementById('video-container');
+            const iframeContainer = document.getElementById('iframe-container');
+            const iframe = document.getElementById('external-player');
+            const video = document.getElementById('video');
 
-        // Filter to force segments through the Worker to bypass CORS/Sniffing
-        player.getNetworkingEngine().registerRequestFilter((type, request) => {
-            const uri = request.uris[0];
-            if (uri.includes('cloudfront.net')) {
-                // Extracts the path after the domain and routes it through your worker
-                const segmentPath = new URL(uri).pathname;
-                request.uris = [workerBase + "/play/ch3" + segmentPath];
-            }
-        });
+            loader.style.display = 'flex';
+            videoContainer.style.display = 'none';
+            iframeContainer.style.display = 'none';
+            iframe.src = "";
+            video.pause();
 
-        // DRM Configuration for Zee TV
-        player.configure({
-          drm: {
-            clearKeys: {
-              'ed068cf84f0640ccbc7c0e395c0a272e': 'bb722190f2bb446391020411a7d0828b'
-            }
-          }
-        });
-
-        video.addEventListener('playing', () => {
-            document.getElementById('loader').style.display = 'none';
-        });
-
-        loadChannel('1');
-    }
-
-    async function loadChannel(id) {
-        const loader = document.getElementById('loader');
-        const videoContainer = document.getElementById('video-container');
-        const iframeContainer = document.getElementById('iframe-container');
-        const iframe = document.getElementById('external-player');
-        const video = document.getElementById('video');
-
-        loader.style.display = 'flex';
-        videoContainer.style.display = 'none';
-        iframeContainer.style.display = 'none';
-        iframe.src = "";
-        
-        if (player) await player.unload();
-
-        if (id === '2') {
-            iframeContainer.style.display = 'block';
-            iframe.src = workerBase + "/play/ch2"; 
-            iframe.onload = () => setTimeout(() => loader.style.display = 'none', 1500);
-        } else {
-            videoContainer.style.display = 'block';
-            try {
-                await player.load(workerBase + "/play/ch" + id);
-            } catch (e) {
-                loader.style.display = 'none';
-                console.error('Shaka Error:', e.code);
+            if (id === '2') {
+                iframeContainer.style.display = 'block';
+                iframe.src = workerBase + "/play/ch2";
+                // iFrames don't have a "playing" event, so we hide loader after 3 seconds
+                iframe.onload = () => setTimeout(() => loader.style.display = 'none', 1500);
+            } else {
+                videoContainer.style.display = 'block';
+                try {
+                    await player.load(workerBase + "/play/ch" + id);
+                } catch (e) {
+                    loader.style.display = 'none';
+                    alert("Error: " + e.code);
+                }
             }
         }
-    }
 
-    document.addEventListener('DOMContentLoaded', initApp);
-</script>
+        document.addEventListener('DOMContentLoaded', initApp);
+    </script>
 </body>
 </html>
