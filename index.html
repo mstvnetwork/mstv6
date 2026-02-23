@@ -2,49 +2,64 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net">
-    <script src="https://cdn.jsdelivr.net"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stream Player</title>
+    <!-- Shaka Player UI Styles from cdnjs -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com">
+    <!-- Shaka Player Library from cdnjs -->
+    <script src="https://cdnjs.cloudflare.com"></script>
     <style>
-        body { margin: 0; padding: 0; background-color: #000; display: flex; justify-content: center; align-items: center; height: 100vh; }
-        #container { width: 100%; height: 100%; max-width: 100%; }
+        body { margin: 0; padding: 0; background: #000; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
+        #player-container { width: 100%; height: 100%; }
         video { width: 100%; height: 100%; }
     </style>
 </head>
 <body>
-    <div id="container" data-shaka-player-container>
+    <div id="player-container" data-shaka-player-container>
         <video autoplay id="video" data-shaka-player></video>
     </div>
 
     <script>
-    async function init() {
+    async function initPlayer() {
         const video = document.getElementById('video');
         const ui = video['ui'];
         const controls = ui.getControls();
         const player = controls.getPlayer();
 
-        // Configure Clearkey DRM with your specific Hex keys
+        // 1. Configure ClearKeys (Hex format)
         player.configure({
             drm: {
                 clearKeys: {
                     'ed068cf84f0640ccbc7c0e395c0a272e': 'bb722190f2bb446391020411a7d0828b'
                 }
-            },
-            streaming: {
-                bufferingGoal: 30,
-                rebufferingGoal: 15
             }
         });
 
+        // 2. Request Filter (Helps bypass simple CORS/Referer blocks)
+        player.getNetworkingEngine().registerRequestFilter(function(type, request) {
+            if (type == shaka.net.NetworkingEngine.RequestType.MANIFEST || 
+                type == shaka.net.NetworkingEngine.RequestType.SEGMENT) {
+                // Mimic official source if needed
+                request.headers['Origin'] = 'https://www.zee5.com';
+                request.headers['Referer'] = 'https://www.zee5.com';
+            }
+        });
+
+        // 3. Load the Stream
         try {
-            await player.load('https://d1g8wgjurz8via.cloudfront.net/bpk-tv/Zeetv/default/main.mpd?');
-            console.log('ZeeTV Stream Loaded Successfully');
-        } catch (e) {
-            console.error('Playback Error:', e.code, e);
-            if (e.code === 1001) alert("CORS Error: The server is blocking this domain.");
+            const manifestUri = 'https://d1g8wgjurz8via.cloudfront.net/bpk-tv/Zeetv/default/main.mpd?';
+            await player.load(manifestUri);
+            console.log('Stream successfully loaded!');
+        } catch (error) {
+            console.error('Error Code:', error.code, 'Error Message:', error);
+            if (error.code === 1001) {
+                alert("CORS Error: The server is still blocking this request.");
+            }
         }
     }
 
-    document.addEventListener('shaka-ui-loaded', init);
+    // Initialize after Shaka UI is ready
+    document.addEventListener('shaka-ui-loaded', initPlayer);
     </script>
 </body>
 </html>
