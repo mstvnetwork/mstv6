@@ -39,12 +39,14 @@
 
     <script>
     
-            // In your player.html, update the channels object to point to your Worker
+            const workerBase = "https://my-proxy.mchoudhry482.workers.dev";
+
 const channels = {
-    "1": "/play/ch1", // This hides the real CloudFront URL
-    "2": "/play/ch2", 
-    "3": "/play/ch3"
+    "1": workerBase + "/play/ch1",
+    "2": workerBase + "/play/ch2", 
+    "3": workerBase + "/play/ch3"
 };
+
 
 // The rest of the Shaka code remains the same
 
