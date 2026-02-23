@@ -3,68 +3,87 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ZeeTV HD - Live Bypass</title>
-    <!-- Stable Shaka Player UI via cdnjs -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com" crossorigin="anonymous">
-    <script src="https://cdnjs.cloudflare.com" crossorigin="anonymous"></script>
+    <title>ZeeTV HD - Zero-CDN Bypass</title>
     <style>
         body { margin: 0; background: #000; color: #0f0; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; font-family: monospace; }
-        .container { width: 95%; max-width: 800px; border: 1px solid #333; }
+        #player-wrapper { width: 95%; max-width: 800px; border: 1px solid #333; background: #111; }
         video { width: 100%; height: auto; display: block; }
-        #status { margin-top: 15px; font-size: 14px; color: #888; }
+        #status { margin-top: 15px; font-size: 14px; text-align: center; }
     </style>
 </head>
 <body>
 
-<div class="container" data-shaka-player-container>
-    <video id="video" data-shaka-player-video autoplay style="width:100%;height:100%"></video>
+<div id="player-wrapper">
+    <video id="video" controls autoplay crossorigin="anonymous"></video>
 </div>
-<div id="status">INITIALISING ZEETV DECRYPTION...</div>
+<div id="status">BYPASSING ISP FILTERS...</div>
 
 <script>
-// Data Sniffed from DevTools [Source: Cloudfront/ZeeTV]
-const rawManifest = 'https://d1g8wgjurz8via.cloudfront.net';
-const proxy = 'https://api.allorigins.win';
-const manifestUri = proxy + encodeURIComponent(rawManifest);
+const status = document.getElementById('status');
+const video = document.getElementById('video');
 
+// 1. Sniffed ZeeTV Data
+const manifestUrl = 'https://d1g8wgjurz8via.cloudfront.net';
 const kid = 'ed068cf84f0640ccbc7c0e395c0a272e';
 const key = 'bb722190f2bb446391020411a7d0828b';
 
-async function init() {
-    const video = document.getElementById('video');
-    const status = document.getElementById('status');
-    
-    // Polyfills for browser compatibility [Source: Shaka Docs]
-    shaka.polyfill.installAll();
+// 2. We use a proxy that is rarely blocked by mobile data carriers
+const proxy = 'https://api.codetabs.com';
+const playerLib = 'https://cdn.jsdelivr.net';
 
-    const ui = video['ui'];
-    const player = ui.getControls().getPlayer();
-
-    // DRM Configuration using ClearKey [Source: DevTools Sniff]
-    player.configure({
-        drm: {
-            clearKeys: {
-                [kid]: key
-            }
-        }
-    });
-
-    player.addEventListener('error', (event) => {
-        status.innerText = "PLAYER ERROR: " + event.detail.code;
-        status.style.color = "red";
-    });
-
+async function startProject() {
     try {
-        await player.load(manifestUri);
-        status.innerText = "STREAMING: ZEE TV HD";
-        status.style.color = "#00ff00";
+        status.innerText = "DOWNLOADING PLAYER ENGINE VIA PROXY...";
+        
+        // This fetches the library code as text to bypass the CDN/CORS block
+        const response = await fetch(proxy + encodeURIComponent(playerLib));
+        const scriptText = await response.text();
+        
+        // Inject the player library locally
+        const scriptTag = document.createElement('script');
+        scriptTag.textContent = scriptText;
+        document.head.appendChild(scriptTag);
+
+        status.innerText = "ENGINE DECODED. APPLYING CLEARKEYS...";
+        setTimeout(initShaka, 500);
     } catch (e) {
-        status.innerText = "LOAD FAILED (ISP BLOCK OR EXPIRED TOKEN)";
-        console.error('Error Code:', e.code);
+        status.innerText = "CARRIER BLOCKED ALL PROXIES. USE 1.1.1.1 VPN.";
+        status.style.color = "red";
     }
 }
 
-document.addEventListener('shaka-ui-loaded', init);
+async function initShaka() {
+    if (typeof shaka === 'undefined') {
+        status.innerText = "ERROR: SHAKA INIT FAILED.";
+        return;
+    }
+
+    const player = new shaka.Player(video);
+    
+    // Applying the keys you found in DevTools [Source: Broadpeak DRM]
+    player.configure({
+        drm: {
+            clearKeys: { [kid]: key }
+        }
+    });
+
+    player.addEventListener('error', (e) => {
+        status.innerText = "STREAM ERROR: " + e.detail.code;
+    });
+
+    try {
+        // Proxying the manifest to bypass Cloudfront's origin check
+        const proxiedManifest = proxy + encodeURIComponent(manifestUrl);
+        await player.load(proxiedManifest);
+        status.innerText = "LIVE: ZEE TV HD";
+        status.style.color = "#00ff00";
+    } catch (e) {
+        status.innerText = "ISP BLOCKED VIDEO DATA (ERR " + e.code + ")";
+        console.error(e);
+    }
+}
+
+startProject();
 </script>
 </body>
 </html>
