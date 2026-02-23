@@ -3,64 +3,47 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ZeeTV HD - Zero-CDN Bypass</title>
+    <title>ZeeTV HD - Private Proxy</title>
+    <!-- Using a more robust CDN that might bypass your ISP's Cloudflare block -->
+    <script src="https://unpkg.com"></script>
     <style>
         body { margin: 0; background: #000; color: #0f0; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; font-family: monospace; }
-        #player-wrapper { width: 95%; max-width: 800px; border: 1px solid #333; background: #111; }
-        video { width: 100%; height: auto; display: block; }
-        #status { margin-top: 15px; font-size: 14px; text-align: center; }
+        .container { width: 95%; max-width: 800px; border: 1px solid #333; box-shadow: 0 0 20px #222; }
+        video { width: 100%; height: auto; display: block; background: #111; }
+        #status { margin-top: 15px; font-size: 14px; color: #00ff00; background: rgba(0,255,0,0.1); padding: 5px 10px; border-radius: 4px; }
     </style>
 </head>
 <body>
 
-<div id="player-wrapper">
+<div class="container">
     <video id="video" controls autoplay crossorigin="anonymous"></video>
 </div>
-<div id="status">BYPASSING ISP FILTERS...</div>
+<div id="status">CONNECTING VIA PRIVATE WORKER...</div>
 
 <script>
-const status = document.getElementById('status');
-const video = document.getElementById('video');
+// 1. UPDATE THIS WITH YOUR CLOUDFLARE WORKER URL
+const myWorker = "https://your-worker-name.your-subdomain.workers.dev";
 
-// 1. Sniffed ZeeTV Data
-const manifestUrl = 'https://d1g8wgjurz8via.cloudfront.net';
+// 2. ZeeTV Sniffed Data
+const rawManifest = 'https://d1g8wgjurz8via.cloudfront.net';
+const manifestUri = myWorker + encodeURIComponent(rawManifest);
+
 const kid = 'ed068cf84f0640ccbc7c0e395c0a272e';
 const key = 'bb722190f2bb446391020411a7d0828b';
 
-// 2. We use a proxy that is rarely blocked by mobile data carriers
-const proxy = 'https://api.codetabs.com';
-const playerLib = 'https://cdn.jsdelivr.net';
+async function init() {
+    const video = document.getElementById('video');
+    const status = document.getElementById('status');
 
-async function startProject() {
-    try {
-        status.innerText = "DOWNLOADING PLAYER ENGINE VIA PROXY...";
-        
-        // This fetches the library code as text to bypass the CDN/CORS block
-        const response = await fetch(proxy + encodeURIComponent(playerLib));
-        const scriptText = await response.text();
-        
-        // Inject the player library locally
-        const scriptTag = document.createElement('script');
-        scriptTag.textContent = scriptText;
-        document.head.appendChild(scriptTag);
-
-        status.innerText = "ENGINE DECODED. APPLYING CLEARKEYS...";
-        setTimeout(initShaka, 500);
-    } catch (e) {
-        status.innerText = "CARRIER BLOCKED ALL PROXIES. USE 1.1.1.1 VPN.";
-        status.style.color = "red";
-    }
-}
-
-async function initShaka() {
     if (typeof shaka === 'undefined') {
-        status.innerText = "ERROR: SHAKA INIT FAILED.";
+        status.innerText = "ISP BLOCKED PLAYER ENGINE. USE 1.1.1.1 VPN.";
+        status.style.color = "red";
         return;
     }
 
     const player = new shaka.Player(video);
-    
-    // Applying the keys you found in DevTools [Source: Broadpeak DRM]
+
+    // Apply Sniffed ClearKeys [Source: Broadpeak DRM]
     player.configure({
         drm: {
             clearKeys: { [kid]: key }
@@ -69,21 +52,21 @@ async function initShaka() {
 
     player.addEventListener('error', (e) => {
         status.innerText = "STREAM ERROR: " + e.detail.code;
+        status.style.color = "orange";
     });
 
     try {
-        // Proxying the manifest to bypass Cloudfront's origin check
-        const proxiedManifest = proxy + encodeURIComponent(manifestUrl);
-        await player.load(proxiedManifest);
-        status.innerText = "LIVE: ZEE TV HD";
-        status.style.color = "#00ff00";
+        await player.load(manifestUri);
+        status.innerText = "LIVE: ZEE TV HD (PROXY ACTIVE)";
     } catch (e) {
-        status.innerText = "ISP BLOCKED VIDEO DATA (ERR " + e.code + ")";
+        status.innerText = "LOAD FAILED. CHECK WORKER LOGS.";
+        status.style.color = "red";
         console.error(e);
     }
 }
 
-startProject();
+// Start with delay to ensure script is loaded
+setTimeout(init, 1000);
 </script>
 </body>
 </html>
