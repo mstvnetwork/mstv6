@@ -2,83 +2,55 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Movies Now HD - ISP Bypass</title>
-    <!-- We use a different, non-standard CDN for the library to sneak past the ISP filter -->
-    <script src="https://player.vimeo.com"></script>
+    <title>ISP Isolation Test</title>
+    <!-- Using a very stable CDN link for the test -->
+    <script src="https://cdn.jsdelivr.net"></script>
     <style>
-        body { margin: 0; background: #000; color: #0f0; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; font-family: monospace; }
-        #player-box { width: 95%; max-width: 720px; border: 1px solid #333; position: relative; }
+        body { margin: 0; background: #111; color: #0f0; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; font-family: sans-serif; }
+        #vid-box { width: 90%; max-width: 640px; border: 2px solid #444; }
         video { width: 100%; height: auto; display: block; }
-        #log { margin-top: 20px; font-size: 12px; color: #888; text-align: center; }
+        #log { margin-top: 20px; font-weight: bold; }
     </style>
 </head>
 <body>
 
-<div id="player-box">
-    <video id="video" controls autoplay crossorigin="anonymous"></video>
+<div id="vid-box">
+    <video id="video" controls autoplay></video>
 </div>
-<div id="log">INITIATING DECRYPTION...</div>
+<div id="log">TESTING CONNECTION...</div>
 
 <script>
-const log = (msg) => document.getElementById('log').innerText = msg;
-const video = document.getElementById('video');
+const log = document.getElementById('log');
+// This is a PUBLIC, NO-DRM test stream from DASH-IF
+const testStream = "https://dash.akamaized.net";
 
-// 1. We use a "Local" version of Shaka Player to avoid the CDN 403 error
-const shakaUrl = "https://cdn.jsdelivr.net";
-const streamUrl = "https://times-ott-live.akamaized.net";
+function runTest() {
+    if (typeof dashjs === 'undefined') {
+        log.innerText = "RESULT: ISP BLOCKED THE PLAYER CODE (CDN BLOCK)";
+        log.style.color = "red";
+        return;
+    }
 
-const keyId = '40f019b86241d23ef075633fd7f1e927';
-const keyVal = '058dec845bd340178a388edd104a015e';
-
-async function loadPlayer() {
-    log("FETCHING ENGINE VIA ALTERNATE ROUTE...");
     try {
-        // We use a different proxy: Cloudflare Workers (often not blocked by mobile data)
-        const proxyUrl = 'https://api.codetabs.com';
+        const player = dashjs.MediaPlayer().create();
+        player.initialize(document.getElementById('video'), testStream, true);
         
-        const scriptResp = await fetch(proxyUrl + encodeURIComponent(shakaUrl));
-        const scriptText = await scriptResp.text();
-        
-        const scriptBlob = new Blob([scriptText], { type: 'application/javascript' });
-        const scriptObjectURL = URL.createObjectURL(scriptBlob);
-        
-        const scriptTag = document.createElement('script');
-        scriptTag.src = scriptObjectURL;
-        scriptTag.onload = () => {
-            log("ENGINE LOADED. STARTING STREAM...");
-            setupShaka();
-        };
-        document.head.appendChild(scriptTag);
+        player.on('canPlay', () => {
+            log.innerText = "RESULT: SUCCESS! YOUR DATA ALLOWS STREAMS.";
+            log.style.color = "#00ff00";
+        });
+
+        player.on('error', (e) => {
+            log.innerText = "RESULT: PLAYER LOADED, BUT VIDEO DATA BLOCKED.";
+            log.style.color = "orange";
+        });
     } catch (e) {
-        log("ISP BLOCKED ALL ROUTES. PLEASE USE 1.1.1.1 VPN.");
+        log.innerText = "RESULT: PLAYER CRASHED.";
     }
 }
 
-async function setupShaka() {
-    const player = new shaka.Player(video);
-    
-    player.configure({
-        drm: {
-            clearKeys: { [keyId]: keyVal }
-        }
-    });
-
-    player.addEventListener('error', (e) => {
-        log("STREAM ERROR: " + e.detail.code);
-    });
-
-    try {
-        // Attempting to load stream directly - if this fails, the video itself is blocked
-        await player.load(streamUrl);
-        log("LIVE: MOVIES NOW HD");
-    } catch (e) {
-        log("CARRIER BLOCKED VIDEO DATA (ERR " + e.code + ")");
-    }
-}
-
-loadPlayer();
+// Wait for script to load
+setTimeout(runTest, 1000);
 </script>
 </body>
 </html>
-
