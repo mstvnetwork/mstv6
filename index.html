@@ -2,60 +2,98 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>ZeeTV - Ultimate Fix</title>
-    <!-- We use an alternate CDN that is rarely blocked on mobile data -->
-    <script src="https://player.vimeo.com"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZeeTV HD - MSTV Network</title>
     <style>
-        body { margin: 0; background: #000; color: #0f0; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; font-family: monospace; }
-        #vid-container { width: 95%; max-width: 720px; border: 1px solid #333; }
+        body { margin: 0; background: #000; color: #0f0; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; font-family: 'Courier New', Courier, monospace; overflow: hidden; }
+        .player-container { width: 95%; max-width: 800px; border: 1px solid #333; box-shadow: 0 0 30px rgba(0,255,0,0.1); background: #111; position: relative; }
         video { width: 100%; height: auto; display: block; }
+        #status { margin-top: 20px; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; padding: 10px; border-radius: 5px; background: rgba(255,255,255,0.05); }
+        .error { color: #ff4444; }
+        .success { color: #00ff00; }
     </style>
 </head>
 <body>
-    <div id="vid-container">
-        <video id="video" controls autoplay crossorigin="anonymous"></video>
-    </div>
-    <div id="status" style="margin-top:15px">ATTEMPTING DNS BYPASS...</div>
 
-    <script>
-        const status = document.getElementById('status');
-        // REPLACE WITH YOUR WORKER URL (Ensure no trailing slash)
-        const myWorker = "https://your-worker-name.your-subdomain.workers.dev";
+<div class="player-container">
+    <video id="video" controls autoplay crossorigin="anonymous"></video>
+</div>
+<div id="status">INITIATING SECURE HANDSHAKE...</div>
+
+<script>
+    const status = document.getElementById('status');
+    const video = document.getElementById('video');
+
+    // 1. YOUR VERIFIED CLOUDFLARE WORKER URL
+    const myWorker = "https://my-proxy.mchoudhry482.workers.dev";
+    
+    // 2. ZEETV SNIFFED DATA [Source: Broadpeak DRM / Cloudfront]
+    const rawManifest = 'https://d1g8wgjurz8via.cloudfront.net';
+    const kid = 'ed068cf84f0640ccbc7c0e395c0a272e';
+    const key = 'bb722190f2bb446391020411a7d0828b';
+
+    async function loadEngine() {
+        status.innerText = "BYPASSING CARRIER SCRIPT FILTER...";
+        try {
+            // Fetching Shaka Player via your Worker as text to bypass ISP 'CORB' blocking
+            const resp = await fetch(myWorker + "/shaka.js", { mode: 'cors' });
+            
+            if (!resp.ok) throw new Error("Worker Error: " + resp.status);
+            
+            const scriptText = await resp.text();
+            const script = document.createElement('script');
+            script.textContent = scriptText;
+            document.head.appendChild(script);
+            
+            status.innerText = "ENGINE DECODED. CONNECTING TO STREAM...";
+            status.className = "success";
+            
+            // Allow a small delay for the browser to register the 'shaka' object
+            setTimeout(startPlayer, 1000);
+        } catch (e) {
+            status.innerText = "CORS/DNS BLOCKED BY CARRIER. CHECK WORKER LOGS.";
+            status.className = "error";
+            console.error("Critical Load Error:", e);
+        }
+    }
+
+    async function startPlayer() {
+        if (typeof shaka === 'undefined') {
+            status.innerText = "SHAKA INIT FAILED. RETRYING...";
+            location.reload();
+            return;
+        }
+
+        const player = new shaka.Player(video);
         
-        const rawManifest = 'https://d1g8wgjurz8via.cloudfront.net';
-        const kid = 'ed068cf84f0640ccbc7c0e395c0a272e';
-        const key = 'bb722190f2bb446391020411a7d0828b';
-
-        async function loadEngine() {
-            try {
-                // Fetching Shaka via your worker (using explicit slash)
-                const resp = await fetch(myWorker + "/shaka.js");
-                const scriptText = await resp.text();
-                const script = document.createElement('script');
-                script.textContent = scriptText;
-                document.head.appendChild(script);
-                
-                setTimeout(startPlayer, 500);
-            } catch (e) {
-                status.innerText = "DNS BLOCKED BY CARRIER. USE 1.1.1.1 VPN.";
-                status.style.color = "red";
+        // Configuration for ClearKey Decryption [Source: Broadpeak]
+        player.configure({
+            drm: {
+                clearKeys: { [kid]: key }
             }
+        });
+
+        player.addEventListener('error', (event) => {
+            status.innerText = "STREAM ERROR: " + event.detail.code;
+            status.className = "error";
+        });
+
+        try {
+            // Loading the proxied manifest through your Worker to bypass Cloudfront restrictions
+            const proxiedUrl = myWorker + "/?url=" + encodeURIComponent(rawManifest);
+            await player.load(proxiedUrl);
+            
+            status.innerText = "LIVE: ZEE TV HD (SECURE TUNNEL ACTIVE)";
+            status.className = "success";
+        } catch (e) {
+            status.innerText = "CARRIER BLOCKED VIDEO DATA (CODE " + e.code + ")";
+            status.className = "error";
         }
+    }
 
-        async function startPlayer() {
-            const player = new shaka.Player(document.getElementById('video'));
-            player.configure({ drm: { clearKeys: { [kid]: key } } });
+    // Start the loading sequence
+    loadEngine();
+</script>
 
-            try {
-                await player.load(myWorker + "/?url=" + encodeURIComponent(rawManifest));
-                status.innerText = "LIVE: ZEE TV HD";
-                status.style.color = "#00ff00";
-            } catch (e) {
-                status.innerText = "VIDEO DATA BLOCKED (ERR " + e.code + ")";
-            }
-        }
-
-        loadEngine();
-    </script>
 </body>
 </html>
