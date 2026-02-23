@@ -38,14 +38,18 @@
     </div>
 
     <script>
-        // YOUR PROVIDED URLS
-        const channels = {
-            "1": "https://d35j504z0x2vu2.cloudfront.net/v1/manifest/0bc8e8376bd8417a1b6761138aa41c26c7309312/bollywood-classic/6b126777-7e9a-444f-9845-48fa1d4ed694/1.m3u8",
-            "2": "https://streamcrichd.com/update/star.php",
-            "3": "https://d1g8wgjurz8via.cloudfront.net/bpk-tv/Zeetv/default/main.mpd"
-        };
+    
+            // In your player.html, update the channels object to point to your Worker
+const channels = {
+    "1": "/play/ch1", // This hides the real CloudFront URL
+    "2": "/play/ch2", 
+    "3": "/play/ch3"
+};
 
-        async function initApp() {
+// The rest of the Shaka code remains the same
+
+                    
+            async function initApp() {
             const params = new URLSearchParams(window.location.search);
             const channelId = params.get('ch') || "1"; // Default to Bollywood
             const customUrl = params.get('url'); // Or allow any custom URL via ?url=
