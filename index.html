@@ -3,77 +3,77 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Movies Now HD - Final Fix</title>
-    <!-- Using Unpkg instead of Cloudflare to bypass ISP blocks -->
-    <script src="https://unpkg.com"></script>
+    <title>Movies Now HD - Final Bypass</title>
+    <!-- We load the player from a different, less-blocked source (Bitmovin CDN) -->
+    <script src="https://cdn.bitmovin.com"></script>
     <style>
-        body { margin: 0; background: #000; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; color: #0f0; font-family: sans-serif; }
+        body { margin: 0; background: #000; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; color: #00ff00; font-family: sans-serif; text-align: center; }
         .container { width: 95%; max-width: 800px; border: 1px solid #333; }
-        video { width: 100%; height: auto; }
-        #status { margin-top: 15px; font-weight: bold; }
+        #player { width: 100%; aspect-ratio: 16/9; background: #111; }
+        #status { margin-top: 15px; font-size: 14px; color: #aaa; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <video id="video" controls autoplay crossorigin="anonymous"></video>
+    <div id="player"></div>
 </div>
-<div id="status">Connecting...</div>
+<div id="status">Bypassing Network Restrictions...</div>
 
 <script>
 const status = document.getElementById('status');
-const video = document.getElementById('video');
 
-// Use AllOrigins as a fallback proxy for the manifest only
-const rawStream = 'https://times-ott-live.akamaized.net';
-const manifestUri = 'https://api.allorigins.win' + encodeURIComponent(rawStream);
+// Stream & DRM Keys
+const manifestUrl = 'https://times-ott-live.akamaized.net';
+const keyId = '40f019b86241d23ef075633fd7f1e927';
+const keyVal = '058dec845bd340178a388edd104a015e';
 
-const clearKeyId = '40f019b86241d23ef075633fd7f1e927';
-const clearKeyValue = '058dec845bd340178a388edd104a015e';
-
-function init() {
-    // Check if the script at the top actually loaded
-    if (typeof shaka === 'undefined') {
-        status.innerText = "CDN Blocked. Trying secondary load...";
-        loadFallback();
-        return;
+// Using Bitmovin Player as it often handles ISP redirects better than Shaka
+const config = {
+  key: 'YOUR_FREE_BITMOVIN_KEY_OR_TRIAL', // Bitmovin needs a key, but we will try a generic DASH config
+  source: {
+    dash: manifestUrl,
+    drm: {
+      clearkey: [{
+        keyId: keyId,
+        key: keyVal
+      }]
     }
-    
-    startPlayer();
-}
+  },
+  playback: { autoplay: true, muted: true }
+};
 
-async function startPlayer() {
-    const player = new shaka.Player(video);
-
-    player.configure({
-        drm: {
-            clearKeys: { [clearKeyId]: clearKeyValue }
-        }
-    });
-
-    player.addEventListener('error', (event) => {
-        status.innerText = "Error: " + event.detail.code;
-        console.error('Shaka Error:', event.detail);
-    });
-
-    try {
-        await player.load(manifestUri);
-        status.innerText = "STREAMING: MOVIES NOW HD";
-    } catch (e) {
-        status.innerText = "Load Failed (Error " + e.code + ")";
-    }
-}
-
-// Fallback if Unpkg is blocked
-function loadFallback() {
+// Fallback to a super-simple DASH.js load if Bitmovin fails
+function loadSimple() {
     const s = document.createElement('script');
-    s.src = "https://cdn.jsdelivr.net";
-    s.onload = startPlayer;
+    s.src = "https://cdn.dashjs.org";
+    s.onload = () => {
+        const player = dashjs.MediaPlayer().create();
+        player.setProtectionData({
+            "org.w3.clearkey": {
+                "clearkeys": { [keyId]: keyVal }
+            }
+        });
+        player.initialize(document.querySelector("#player"), manifestUrl, true);
+        status.innerText = "STREAMING (DASH.JS MODE)";
+    };
     document.head.appendChild(s);
 }
 
-// Run init after a short delay
-setTimeout(init, 1000);
+// Check if we can reach the manifest
+fetch('https://api.allorigins.win' + encodeURIComponent(manifestUrl))
+    .then(r => {
+        if(r.ok) {
+            status.innerText = "Manifest Reachable. Starting Player...";
+            loadSimple();
+        } else {
+            status.innerText = "Carrier Blocked the Stream (403/404).";
+        }
+    })
+    .catch(() => {
+        status.innerText = "Network Error: Proxy Blocked.";
+    });
+
 </script>
 </body>
 </html>
