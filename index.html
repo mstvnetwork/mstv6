@@ -30,8 +30,9 @@
         player.configure({
             drm: {
                 clearKeys: {
-                    'ed068cf84f0640ccbc7c0e395c0a272e': 'bb722190f2bb446391020411a7d0828b'
-                }
+    '7QaM+E8GQMy8fA45XAoHLg==': 'u3IhkPK7RGORAgQRp9CCiw=='
+}
+
             }
         });
 
@@ -45,16 +46,18 @@
             }
         });
 
-        // 3. Load the Stream
-        try {
-            const manifestUri = 'https://d1g8wgjurz8via.cloudfront.net/bpk-tv/Zeetv/default/main.mpd?';
-            await player.load(manifestUri);
-            console.log('Stream successfully loaded!');
-        } catch (error) {
-            console.error('Error Code:', error.code, 'Error Message:', error);
-            if (error.code === 1001) {
-                alert("CORS Error: The server is still blocking this request.");
-            }
+        // 3. Load the Stream with a CORS Proxy
+try {
+    // This proxy strips the 'origin' header so CloudFront doesn't block you
+    const proxy = 'https://corsproxy.io?'; 
+    const manifestUri = 'https://d1g8wgjurz8via.cloudfront.net?';
+    
+    await player.load(proxy + encodeURIComponent(manifestUri));
+    console.log('Stream successfully bypassed CORS!');
+} catch (error) {
+    console.error('Shaka Error:', error.code, error);
+}
+
         }
     }
 
