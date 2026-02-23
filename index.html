@@ -3,68 +3,86 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ZeeTV HD - MSTV Network</title>
-    <!-- Direct load from your repo to bypass ISP filter -->
+    <title>Universal Media Player</title>
+    <!-- Link to your local shaka.js file in the same GitHub folder -->
     <script src="shaka.js"></script>
     <style>
-        body { margin: 0; background: #000; color: #0f0; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; font-family: 'Courier New', Courier, monospace; overflow: hidden; }
-        .player-container { width: 95%; max-width: 800px; border: 1px solid #333; box-shadow: 0 0 30px rgba(0,255,0,0.1); background: #111; position: relative; }
-        video { width: 100%; height: auto; display: block; }
-        #status { margin-top: 20px; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; padding: 10px; border-radius: 5px; background: rgba(255,255,255,0.05); }
-        .error { color: #ff4444; }
-        .success { color: #00ff00; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; }
+        #video-container, #iframe-container { width: 100%; height: 100%; display: none; }
+        video, iframe { width: 100%; height: 100%; border: none; }
+        
+        /* Simple Channel Switcher Overlay (Optional) */
+        .controls { position: absolute; bottom: 10px; left: 10px; z-index: 100; display: flex; gap: 5px; opacity: 0.5; transition: 0.3s; }
+        .controls:hover { opacity: 1; }
+        .btn { background: rgba(255,255,255,0.2); color: white; border: none; padding: 8px 12px; cursor: pointer; font-size: 12px; border-radius: 4px; }
+        .btn:hover { background: #e91e63; }
     </style>
 </head>
 <body>
 
-<div class="player-container">
-    <video id="video" controls autoplay crossorigin="anonymous"></video>
-</div>
-<div id="status">INITIATING SECURE HANDSHAKE...</div>
+    <!-- UI Overlay for your specific links -->
+    <div class="controls">
+        <button class="btn" onclick="window.location.search='?ch=1'">Bollywood Classic</button>
+        <button class="btn" onclick="window.location.search='?ch=2'">Star Sports (Web)</button>
+        <button class="btn" onclick="window.location.search='?ch=3'">Zee TV (DASH)</button>
+    </div>
 
-<script>
-    const status = document.getElementById('status');
-    const video = document.getElementById('video');
+    <!-- Container 1: Shaka Player (HLS/DASH) -->
+    <div id="video-container">
+        <video id="video" controls autoplay muted playsinline></video>
+    </div>
 
-    // 1. YOUR VERIFIED CLOUDFLARE WORKER URL
-    const myWorker = "https://my-proxy.mchoudhry482.workers.dev";
-    
-    // 2. FIXED ZEETV DATA (Full Path + Sniffed Keys)
-    const rawManifest = 'https://d1g8wgjurz8via.cloudfront.net';
-    const kid = 'ed068cf84f0640ccbc7c0e395c0a272e';
-    const key = 'bb722190f2bb446391020411a7d0828b';
+    <!-- Container 2: iFrame (PHP/Web pages) -->
+    <div id="iframe-container">
+        <iframe id="external-player" allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe>
+    </div>
 
-    function init() {
-        status.innerText = "Checking Engine Activation...";
-        
-        // Wait for the <script src="shaka.js"> to be ready
-        if (typeof shaka === 'undefined') {
-            status.innerText = "ENGINE NOT READY. RETRYING...";
-            setTimeout(init, 1000);
-            return;
+    <script>
+        // YOUR PROVIDED URLS
+        const channels = {
+            "1": "https://d35j504z0x2vu2.cloudfront.net/v1/manifest/0bc8e8376bd8417a1b6761138aa41c26c7309312/bollywood-classic/6b126777-7e9a-444f-9845-48fa1d4ed694/1.m3u8",
+            "2": "https://streamcrichd.com/update/star.php",
+            "3": "https://d1g8wgjurz8via.cloudfront.net/bpk-tv/Zeetv/default/main.mpd"
+        };
+
+        async function initApp() {
+            const params = new URLSearchParams(window.location.search);
+            const channelId = params.get('ch') || "1"; // Default to Bollywood
+            const customUrl = params.get('url'); // Or allow any custom URL via ?url=
+            
+            const targetUrl = customUrl || channels[channelId];
+            
+            const videoContainer = document.getElementById('video-container');
+            const iframeContainer = document.getElementById('iframe-container');
+
+            // Logic: Is it a direct stream or a webpage?
+            if (targetUrl.includes('.m3u8') || targetUrl.includes('.mpd') || targetUrl.includes('.ts')) {
+                videoContainer.style.display = 'block';
+                await launchShaka(targetUrl);
+            } else {
+                iframeContainer.style.display = 'block';
+                document.getElementById('external-player').src = targetUrl;
+            }
         }
-        
-        status.innerText = "ENGINE ACTIVE. CONNECTING TO TUNNEL...";
-        startPlayer();
-    }
-async function startPlayer() {
-    const player = new shaka.Player();
-    await player.attach(video);
 
-    try {
-        // DIRECT LINK: No worker, no proxy. 
-        const directUrl = 'https://dash.akamaized.net';
-        
-        await player.load(directUrl);
-        status.innerText = "SUCCESS: ISP ALLOWS DIRECT AKAMAI STREAMS";
-    } catch (e) {
-        status.innerText = "ISP BLOCKED DIRECT VIDEO (CODE " + e.code + ")";
-    }
-}
+        async function launchShaka(url) {
+            shaka.polyfill.installAll();
+            const video = document.getElementById('video');
+            const player = new shaka.Player(video);
 
+            try {
+                await player.load(url);
+                console.log('Stream loaded!');
+            } catch (e) {
+                console.error('Shaka Player Error:', e.code);
+                // Fallback: If Shaka fails, try loading in iframe as last resort
+                document.getElementById('video-container').style.display = 'none';
+                document.getElementById('iframe-container').style.display = 'block';
+                document.getElementById('external-player').src = url;
+            }
+        }
 
-    // Start the process
-    window.onload = init;
-</script>
+        document.addEventListener('DOMContentLoaded', initApp);
+    </script>
 </body>
 </html>
