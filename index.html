@@ -4,14 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Movies Now HD - Fixed</title>
-    <!-- jsDelivr is more reliable for GitHub Pages. Added crossorigin to fix CORB -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net" crossorigin="anonymous">
-    <script src="https://cdn.jsdelivr.net" crossorigin="anonymous"></script>
+    
+    <!-- Using cdnjs: More stable for GitHub Pages with explicit cross-origin headers -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com" crossorigin="anonymous">
+    <script src="https://cdnjs.cloudflare.com" crossorigin="anonymous"></script>
+
     <style>
         body { margin: 0; background: #000; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; color: white; font-family: sans-serif; }
-        .container { width: 90%; max-width: 800px; border: 1px solid #444; }
-        video { width: 100%; height: auto; }
-        #status { margin-top: 15px; color: #aaa; font-size: 14px; }
+        .container { width: 90%; max-width: 800px; border: 1px solid #333; position: relative; }
+        video { width: 100%; height: auto; display: block; }
+        #status { margin-top: 15px; color: #00ff00; font-weight: bold; background: rgba(0,0,0,0.6); padding: 5px 10px; border-radius: 4px; }
     </style>
 </head>
 <body>
@@ -19,10 +21,10 @@
 <div class="container" data-shaka-player-container>
     <video id="video" data-shaka-player-video autoplay></video>
 </div>
-<div id="status">Waiting for Shaka Player...</div>
+<div id="status">Loading Player...</div>
 
 <script>
-// Use AllOrigins as a more stable proxy for Akamai streams [Source: allorigins.win]
+// manifestUri uses AllOrigins to bypass Akamai's CORS block on GitHub Pages
 const rawUri = 'https://times-ott-live.akamaized.net';
 const manifestUri = 'https://api.allorigins.win' + encodeURIComponent(rawUri);
 
@@ -33,30 +35,42 @@ async function initPlayer() {
     const video = document.getElementById('video');
     const status = document.getElementById('status');
 
-    // Check if shaka loaded correctly
+    // 1. Safety check for Shaka
     if (typeof shaka === 'undefined') {
-        status.innerText = "Error: Shaka Library failed to load (CORB block).";
+        status.style.color = "red";
+        status.innerText = "Error: Library failed to load. Try a different browser.";
         return;
     }
 
+    // 2. Setup Player
     const ui = video['ui'];
     const player = ui.getControls().getPlayer();
 
+    // 3. ClearKey Configuration
     player.configure({
         drm: {
             clearKeys: { [clearKeyId]: clearKeyValue }
         }
     });
 
+    // 4. Handle Errors
+    player.addEventListener('error', (event) => {
+        status.style.color = "red";
+        status.innerText = "Stream Error: " + event.detail.code;
+        console.error('Shaka Error:', event.detail);
+    });
+
     try {
         await player.load(manifestUri);
-        status.innerText = "Stream Loaded Successfully!";
+        status.innerText = "Streaming: Movies Now HD";
     } catch (e) {
-        status.innerText = "Load Failed. Code: " + e.code;
+        status.style.color = "red";
+        status.innerText = "Load Failed (Check Console)";
         console.error('Load Error:', e);
     }
 }
 
+// Start only when UI is fully ready
 document.addEventListener('shaka-ui-loaded', initPlayer);
 </script>
 </body>
