@@ -20,7 +20,7 @@
 </head>
 <body>
 
-    <div id="loader"><div class="spinner"></div><div class="load-text">LOADING SECURE STREAM...</div></div>
+    <div id="loader"><div class="spinner"></div><div class="load-text">LOADING...</div></div>
 
     <div class="nav">
         <button class="btn" onclick="loadChannel('1')">Bollywood</button>
@@ -31,7 +31,6 @@
     <div id="video-container"><video id="video" controls autoplay playsinline muted></video></div>
 
     <div id="iframe-container">
-        <!-- Sandbox blocks 'allow-top-navigation' to stop redirections -->
         <iframe id="external-player" 
                 sandbox="allow-scripts allow-same-origin allow-forms allow-presentation" 
                 allow="autoplay; encrypted-media; fullscreen" 
@@ -41,24 +40,25 @@
     <script>
         const workerBase = "https://my-proxy.mchoudhry482.workers.dev";
         let player;
+        let currentId = '1';
 
         async function initApp() {
             shaka.polyfill.installAll();
             const video = document.getElementById('video');
             player = new shaka.Player(video);
 
-            // Hide loader when video starts
             video.addEventListener('playing', () => document.getElementById('loader').style.display = 'none');
 
-            // Force all DASH segments through Worker to hide CloudFront URL
+            // Fix Error 7002: Proxy segments through Worker
             player.getNetworkingEngine().registerRequestFilter((type, request) => {
-                if (type === shaka.net.NetworkingEngine.RequestType.SEGMENT && request.uris[0].includes('cloudfront.net')) {
-                    const segmentPath = new URL(request.uris[0]).pathname;
-                    request.uris = [workerBase + "/play/ch3" + segmentPath];
+                const uri = request.uris[0];
+                if (type === shaka.net.NetworkingEngine.RequestType.SEGMENT && uri.includes('cloudfront.net')) {
+                    const segmentPath = new URL(uri).pathname;
+                    request.uris = [workerBase + "/play/ch" + currentId + segmentPath];
                 }
             });
 
-            // Decryption Keys for Zee TV
+            // DRM for CH3
             player.configure({
                 drm: { clearKeys: { 'ed068cf84f0640ccbc7c0e395c0a272e': 'bb722190f2bb446391020411a7d0828b' } }
             });
@@ -67,6 +67,7 @@
         }
 
         async function loadChannel(id) {
+            currentId = id;
             const loader = document.getElementById('loader');
             const videoContainer = document.getElementById('video-container');
             const iframeContainer = document.getElementById('iframe-container');
@@ -76,20 +77,20 @@
             loader.style.display = 'flex';
             videoContainer.style.display = 'none';
             iframeContainer.style.display = 'none';
-            iframe.src = "about:blank"; // Kill previous scripts
+            iframe.src = "about:blank"; 
             if (player) await player.unload();
 
             if (id === '2') {
                 iframeContainer.style.display = 'block';
                 iframe.src = workerBase + "/play/ch2";
-                iframe.onload = () => setTimeout(() => loader.style.display = 'none', 2000);
+                iframe.onload = () => setTimeout(() => loader.style.display = 'none', 1500);
             } else {
                 videoContainer.style.display = 'block';
                 try {
                     await player.load(workerBase + "/play/ch" + id);
                 } catch (e) {
                     loader.style.display = 'none';
-                    console.error("Error:", e.code);
+                    console.error("Error Code:", e.code);
                 }
             }
         }
