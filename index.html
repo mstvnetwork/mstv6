@@ -3,88 +3,87 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Universal Media Player</title>
-    <!-- Link to your local shaka.js file in the same GitHub folder -->
+    <title>MSTV Player Pro</title>
     <script src="shaka.js"></script>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; }
-        #video-container, #iframe-container { width: 100%; height: 100%; display: none; }
+        #video-container, #iframe-container { width: 100%; height: 100vh; display: none; }
         video, iframe { width: 100%; height: 100%; border: none; }
         
-        /* Simple Channel Switcher Overlay (Optional) */
-        .controls { position: absolute; bottom: 10px; left: 10px; z-index: 100; display: flex; gap: 5px; opacity: 0.5; transition: 0.3s; }
-        .controls:hover { opacity: 1; }
-        .btn { background: rgba(255,255,255,0.2); color: white; border: none; padding: 8px 12px; cursor: pointer; font-size: 12px; border-radius: 4px; }
-        .btn:hover { background: #e91e63; }
+        /* Navigation Buttons */
+        .nav { position: absolute; top: 15px; left: 15px; z-index: 100; display: flex; gap: 8px; }
+        .btn { background: rgba(30, 30, 30, 0.8); color: #fff; border: 1px solid #444; padding: 10px 15px; cursor: pointer; border-radius: 6px; font-weight: bold; transition: 0.2s; }
+        .btn:hover { background: #e91e63; border-color: #fff; }
+
+        /* Loading Spinner */
+        #loader { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 50; display: flex; flex-direction: column; align-items: center; }
+        .spinner { width: 50px; height: 50px; border: 5px solid rgba(255, 255, 255, 0.1); border-top: 5px solid #e91e63; border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .load-text { color: white; margin-top: 15px; font-size: 14px; letter-spacing: 1px; }
     </style>
 </head>
 <body>
 
-    <!-- UI Overlay for your specific links -->
-    <div class="controls">
-        <button class="btn" onclick="window.location.search='?ch=1'">Bollywood Classic</button>
-        <button class="btn" onclick="window.location.search='?ch=2'">Star Sports (Web)</button>
-        <button class="btn" onclick="window.location.search='?ch=3'">Zee TV (DASH)</button>
+    <div id="loader">
+        <div class="spinner"></div>
+        <div class="load-text">FETCHING STREAM...</div>
     </div>
 
-    <!-- Container 1: Shaka Player (HLS/DASH) -->
+    <div class="nav">
+        <button class="btn" onclick="loadChannel('1')">Bollywood</button>
+        <button class="btn" onclick="loadChannel('2')">Star Sports</button>
+        <button class="btn" onclick="loadChannel('3')">Zee TV</button>
+    </div>
+
     <div id="video-container">
-        <video id="video" controls autoplay muted playsinline></video>
+        <video id="video" controls autoplay playsinline muted></video>
     </div>
 
-    <!-- Container 2: iFrame (PHP/Web pages) -->
     <div id="iframe-container">
         <iframe id="external-player" allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe>
     </div>
 
     <script>
-    
-            const workerBase = "https://my-proxy.mchoudhry482.workers.dev";
+        const workerBase = "https://my-proxy.mchoudhry482.workers.dev";
+        let player;
 
-const channels = {
-    "1": workerBase + "/play/ch1",
-    "2": workerBase + "/play/ch2", 
-    "3": workerBase + "/play/ch3"
-};
-
-
-// The rest of the Shaka code remains the same
-
-                    
-            async function initApp() {
-            const params = new URLSearchParams(window.location.search);
-            const channelId = params.get('ch') || "1"; // Default to Bollywood
-            const customUrl = params.get('url'); // Or allow any custom URL via ?url=
-            
-            const targetUrl = customUrl || channels[channelId];
-            
-            const videoContainer = document.getElementById('video-container');
-            const iframeContainer = document.getElementById('iframe-container');
-
-            // Logic: Is it a direct stream or a webpage?
-            if (targetUrl.includes('.m3u8') || targetUrl.includes('.mpd') || targetUrl.includes('.ts')) {
-                videoContainer.style.display = 'block';
-                await launchShaka(targetUrl);
-            } else {
-                iframeContainer.style.display = 'block';
-                document.getElementById('external-player').src = targetUrl;
-            }
-        }
-
-        async function launchShaka(url) {
+        async function initApp() {
             shaka.polyfill.installAll();
             const video = document.getElementById('video');
-            const player = new shaka.Player(video);
+            player = new shaka.Player(video);
 
-            try {
-                await player.load(url);
-                console.log('Stream loaded!');
-            } catch (e) {
-                console.error('Shaka Player Error:', e.code);
-                // Fallback: If Shaka fails, try loading in iframe as last resort
-                document.getElementById('video-container').style.display = 'none';
-                document.getElementById('iframe-container').style.display = 'block';
-                document.getElementById('external-player').src = url;
+            // Hide loader when video actually starts playing
+            video.addEventListener('playing', () => document.getElementById('loader').style.display = 'none');
+            
+            loadChannel('1');
+        }
+
+        async function loadChannel(id) {
+            const loader = document.getElementById('loader');
+            const videoContainer = document.getElementById('video-container');
+            const iframeContainer = document.getElementById('iframe-container');
+            const iframe = document.getElementById('external-player');
+            const video = document.getElementById('video');
+
+            loader.style.display = 'flex';
+            videoContainer.style.display = 'none';
+            iframeContainer.style.display = 'none';
+            iframe.src = "";
+            video.pause();
+
+            if (id === '2') {
+                iframeContainer.style.display = 'block';
+                iframe.src = workerBase + "/play/ch2";
+                // iFrames don't have a "playing" event, so we hide loader after 3 seconds
+                iframe.onload = () => setTimeout(() => loader.style.display = 'none', 1500);
+            } else {
+                videoContainer.style.display = 'block';
+                try {
+                    await player.load(workerBase + "/play/ch" + id);
+                } catch (e) {
+                    loader.style.display = 'none';
+                    alert("Error: " + e.code);
+                }
             }
         }
 
