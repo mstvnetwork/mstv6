@@ -2,51 +2,60 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>ZeeTV HD - Private Proxy</title>
+    <title>ZeeTV - Ultimate Fix</title>
+    <!-- We use an alternate CDN that is rarely blocked on mobile data -->
+    <script src="https://player.vimeo.com"></script>
     <style>
         body { margin: 0; background: #000; color: #0f0; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; font-family: monospace; }
-        .container { width: 95%; max-width: 800px; border: 1px solid #333; }
-        video { width: 100%; height: auto; display: block; background: #111; }
-        #status { margin-top: 15px; font-size: 14px; }
+        #vid-container { width: 95%; max-width: 720px; border: 1px solid #333; }
+        video { width: 100%; height: auto; display: block; }
     </style>
 </head>
 <body>
-    <div class="container"><video id="video" controls autoplay crossorigin="anonymous"></video></div>
-    <div id="status">LOADING ENGINE VIA WORKER...</div>
+    <div id="vid-container">
+        <video id="video" controls autoplay crossorigin="anonymous"></video>
+    </div>
+    <div id="status" style="margin-top:15px">ATTEMPTING DNS BYPASS...</div>
 
     <script>
-        // UPDATE WITH YOUR ACTUAL WORKER URL
+        const status = document.getElementById('status');
+        // REPLACE WITH YOUR WORKER URL (Ensure no trailing slash)
         const myWorker = "https://your-worker-name.your-subdomain.workers.dev";
         
-        // Load Player via your "Trusted" Worker domain
-        const script = document.createElement('script');
-        script.src = myWorker + "shaka.js";
-        document.head.appendChild(script);
-
-        // ZeeTV Sniffed Data
         const rawManifest = 'https://d1g8wgjurz8via.cloudfront.net';
         const kid = 'ed068cf84f0640ccbc7c0e395c0a272e';
         const key = 'bb722190f2bb446391020411a7d0828b';
 
-        script.onload = () => {
-            const video = document.getElementById('video');
-            const player = new shaka.Player(video);
+        async function loadEngine() {
+            try {
+                // Fetching Shaka via your worker (using explicit slash)
+                const resp = await fetch(myWorker + "/shaka.js");
+                const scriptText = await resp.text();
+                const script = document.createElement('script');
+                script.textContent = scriptText;
+                document.head.appendChild(script);
+                
+                setTimeout(startPlayer, 500);
+            } catch (e) {
+                status.innerText = "DNS BLOCKED BY CARRIER. USE 1.1.1.1 VPN.";
+                status.style.color = "red";
+            }
+        }
+
+        async function startPlayer() {
+            const player = new shaka.Player(document.getElementById('video'));
             player.configure({ drm: { clearKeys: { [kid]: key } } });
 
-            const proxiedUrl = myWorker + "?url=" + encodeURIComponent(rawManifest);
-            
-            player.load(proxiedUrl).then(() => {
-                document.getElementById('status').innerText = "LIVE: ZEE TV HD";
-                document.getElementById('status').style.color = "#00ff00";
-            }).catch(e => {
-                document.getElementById('status').innerText = "STREAM ERROR (CODE " + e.code + ")";
-                console.error(e);
-            });
-        };
+            try {
+                await player.load(myWorker + "/?url=" + encodeURIComponent(rawManifest));
+                status.innerText = "LIVE: ZEE TV HD";
+                status.style.color = "#00ff00";
+            } catch (e) {
+                status.innerText = "VIDEO DATA BLOCKED (ERR " + e.code + ")";
+            }
+        }
 
-        script.onerror = () => {
-            document.getElementById('status').innerText = "CARRIER BLOCKED WORKER SCRIPT LOAD.";
-        };
+        loadEngine();
     </script>
 </body>
 </html>
