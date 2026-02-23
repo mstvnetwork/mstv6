@@ -1,41 +1,82 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Stream Tester Bypass</title>
-    <!-- Open-source Shaka Player (No license required) -->
-    <script src="https://cdnjs.cloudflare.com"></script>
+    <meta charset="UTF-8">
+    <meta name="referrer" content="no-referrer">
+
+    <title>Live Multi-Player</title>
     <style>
-        body { background: #000; color: #fff; text-align: center; font-family: sans-serif; }
-        video { width: 80%; margin-top: 50px; background: #222; }
+        body { background: #111; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; font-family: sans-serif; }
+        .controls { margin-bottom: 15px; display: flex; gap: 10px; align-items: center; }
+        
+        select, button { padding: 10px; font-size: 14px; background: #333; color: white; border: 1px solid #555; border-radius: 5px; cursor: pointer; }
+        button:hover { background: #444; border-color: #e50914; }
+
+        .player-window {
+            width: 800px; height: 500px; 
+            overflow: hidden; position: relative;
+            border: 2px solid #444; background: #000;
+        }
+
+        #main-iframe {
+            position: absolute;
+            width: 1280px; height: 1200px;
+            transition: all 0.3s ease; /* Smooth transition when switching crops */
+        }
     </style>
 </head>
 <body>
-    <h2>Custom Stream Tester</h2>
-    <video id="video" controls autoplay muted></video>
+
+    <div class="controls">
+        <select id="channel-select" onchange="updatePlayer()">
+            <option value="https://tulnit.com/live/bollywood-plus/" data-top="-430" data-left="-47">Sony TV HD</option>
+            <option value="https://tulnit.com/live/bollywood-movies-2/" data-top="-430" data-left="-47">Star Plus</option>
+            <option value="https://tulnit.com/live/bollywood-colors/" data-top="-430" data-left="-47">Colors TV</option>
+        </select>
+
+        <!-- The Reset Button -->
+        <button onclick="updatePlayer()">🔄 Reload Stream</button>
+    </div>
+
+    <div class="player-window">
+        <iframe id="main-iframe" src="https://tulnit.com" scrolling="no" frameborder="0"></iframe>
+    </div>
 
     <script>
-        async function initApp() {
-            shaka.polyfill.installAll(); // Fixes browser compatibility
-            const video = document.getElementById('video');
-            const player = new shaka.Player(video);
+        function updatePlayer() {
+            const selector = document.getElementById('channel-select');
+            const iframe = document.getElementById('main-iframe');
+            
+            // Get data from selected option
+            const selectedOption = selector.options[selector.selectedIndex];
+            const newSrc = selectedOption.value;
+            const newTop = selectedOption.getAttribute('data-top');
+            const newLeft = selectedOption.getAttribute('data-left');
 
-            // Configure ClearKey
-            player.configure({
-                drm: {
-                    clearKeys: {
-                        'ed068cf84f0640ccbc7c0e395c0a272e': 'bb722190f2bb446391020411a7d0828b'
-                    }
-                }
-            });
-
-            try {
-                await player.load('https://d1g8wgjurz8via.cloudfront.net/bpk-tv/Zeetv/default/main.mpd?'); 
-                console.log('Stream loaded successfully!');
-            } catch (e) {
-                console.error('Error Code:', e.code, e);
-            }
+            // 1. Force reload by clearing src first (prevents caching issues)
+            iframe.src = "about:blank";
+            
+            // 2. Set new source and crop position
+            setTimeout(() => {
+                iframe.src = newSrc;
+                iframe.style.top = newTop + "px";
+                iframe.style.left = newLeft + "px";
+            }, 10);
         }
-        document.addEventListener('DOMContentLoaded', initApp);
+
+        // Initial setup on page load
+        window.onload = updatePlayer;
     </script>
+
 </body>
 </html>
+
+
+
+
+
+https://d1g8wgjurz8via.cloudfront.net/bpk-tv/Zeetv/default/main.mpd?
+https://d1g8wgjurz8via.cloudfront.net/bpk-tv/Zeetv/default/main.mpd?
+https://tulnit.com/cdn-cgi/rum?
+
+https://d1g8wgjurz8via.cloudfront.net/bpk-tv/Zeetv/default/dash/Zeetv-video=1087600-1063040097743.dash
