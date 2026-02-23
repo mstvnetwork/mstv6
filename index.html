@@ -3,28 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Movies Now HD - Fixed Player</title>
-    <!-- Use jsDelivr for more reliable script loading on GitHub Pages -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net">
-    <script src="https://cdn.jsdelivr.net"></script>
+    <title>Movies Now HD - Fixed</title>
+    <!-- jsDelivr is more reliable for GitHub Pages. Added crossorigin to fix CORB -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net" crossorigin="anonymous"></script>
     <style>
         body { margin: 0; background: #000; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; color: white; font-family: sans-serif; }
-        .container { width: 90%; max-width: 800px; }
-        video { width: 100%; height: auto; background: #111; }
-        #status { margin-top: 10px; color: #888; font-size: 0.9em; }
+        .container { width: 90%; max-width: 800px; border: 1px solid #444; }
+        video { width: 100%; height: auto; }
+        #status { margin-top: 15px; color: #aaa; font-size: 14px; }
     </style>
 </head>
 <body>
 
 <div class="container" data-shaka-player-container>
-    <video id="video" data-shaka-player-video autoplay style="width:100%;height:100%"></video>
+    <video id="video" data-shaka-player-video autoplay></video>
 </div>
-<div id="status">Initializing Player...</div>
+<div id="status">Waiting for Shaka Player...</div>
 
 <script>
-// CORS Proxy is required because Akamai blocks mstvnetwork.github.io [Source: Cloudinary Docs]
+// Use AllOrigins as a more stable proxy for Akamai streams [Source: allorigins.win]
 const rawUri = 'https://times-ott-live.akamaized.net';
-const manifestUri = 'https://cors-anywhere.herokuapp.com' + rawUri; // Try herokuapp if corsproxy.io is blocked
+const manifestUri = 'https://api.allorigins.win' + encodeURIComponent(rawUri);
 
 const clearKeyId = '40f019b86241d23ef075633fd7f1e927';
 const clearKeyValue = '058dec845bd340178a388edd104a015e';
@@ -32,37 +32,32 @@ const clearKeyValue = '058dec845bd340178a388edd104a015e';
 async function initPlayer() {
     const video = document.getElementById('video');
     const status = document.getElementById('status');
-    
-    // Shaka UI handles player initialization automatically when data-shaka-player attributes are present
+
+    // Check if shaka loaded correctly
+    if (typeof shaka === 'undefined') {
+        status.innerText = "Error: Shaka Library failed to load (CORB block).";
+        return;
+    }
+
     const ui = video['ui'];
     const player = ui.getControls().getPlayer();
 
-    // Set ClearKey configuration [Source: Shaka Player Demo]
     player.configure({
         drm: {
-            clearKeys: {
-                [clearKeyId]: clearKeyValue
-            }
+            clearKeys: { [clearKeyId]: clearKeyValue }
         }
-    });
-
-    player.addEventListener('error', (event) => {
-        status.innerText = 'Error: ' + event.detail.code;
-        console.error('Shaka Error:', event.detail);
     });
 
     try {
         await player.load(manifestUri);
-        status.innerText = 'Playing: Movies Now HD';
+        status.innerText = "Stream Loaded Successfully!";
     } catch (e) {
-        status.innerText = 'Load Failed (Check Console)';
+        status.innerText = "Load Failed. Code: " + e.code;
         console.error('Load Error:', e);
     }
 }
 
-// Start when UI is ready
 document.addEventListener('shaka-ui-loaded', initPlayer);
 </script>
-
 </body>
 </html>
