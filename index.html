@@ -54,14 +54,15 @@
         const video = document.getElementById('video');
         player = new shaka.Player(video);
 
-        // CONFIGURING THE KEYS FOR CH3 (Zee TV)
-        player.configure({
-          drm: {
-            clearKeys: {
-              'ed068cf84f0640ccbc7c0e395c0a272e': 'bb722190f2bb446391020411a7d0828b'
-            }
-          }
-        });
+        // Replace the old player.configure in your index.html with this:
+player.configure({
+  drm: {
+    clearKeys: {
+      'ed068cf84f0640ccbc7c0e395c0a272e': 'bb722190f2bb446391020411a7d0828b'
+    }
+  }
+});
+
 
         video.addEventListener('playing', () => document.getElementById('loader').style.display = 'none');
         loadChannel('1');
