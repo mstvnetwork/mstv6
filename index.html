@@ -51,22 +51,14 @@ async function startPlayer() {
     const player = new shaka.Player();
     await player.attach(video);
 
-    // Disable DRM for this test since Big Buck Bunny is "clear" content
-    player.configure({
-        drm: { clearKeys: {} } 
-    });
-
     try {
-        // Use your worker to proxy the public test stream
-        const testManifest = 'https://dash.akamaized.net';
-        const proxiedUrl = myWorker + "/?url=" + encodeURIComponent(testManifest);
+        // DIRECT LINK: No worker, no proxy. 
+        const directUrl = 'https://dash.akamaized.net';
         
-        await player.load(proxiedUrl);
-        status.innerText = "TEST SUCCESS: PUBLIC STREAM PLAYING";
-        status.className = "success";
+        await player.load(directUrl);
+        status.innerText = "SUCCESS: ISP ALLOWS DIRECT AKAMAI STREAMS";
     } catch (e) {
-        status.innerText = "TEST FAILED (CODE " + e.code + ")";
-        status.className = "error";
+        status.innerText = "ISP BLOCKED DIRECT VIDEO (CODE " + e.code + ")";
     }
 }
 
