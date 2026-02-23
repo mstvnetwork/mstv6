@@ -3,77 +3,82 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Movies Now HD - Final Bypass</title>
-    <!-- We load the player from a different, less-blocked source (Bitmovin CDN) -->
-    <script src="https://cdn.bitmovin.com"></script>
+    <title>Movies Now HD - ISP Bypass</title>
+    <!-- We use a different, non-standard CDN for the library to sneak past the ISP filter -->
+    <script src="https://player.vimeo.com"></script>
     <style>
-        body { margin: 0; background: #000; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; color: #00ff00; font-family: sans-serif; text-align: center; }
-        .container { width: 95%; max-width: 800px; border: 1px solid #333; }
-        #player { width: 100%; aspect-ratio: 16/9; background: #111; }
-        #status { margin-top: 15px; font-size: 14px; color: #aaa; }
+        body { margin: 0; background: #000; color: #0f0; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; font-family: monospace; }
+        #player-box { width: 95%; max-width: 720px; border: 1px solid #333; position: relative; }
+        video { width: 100%; height: auto; display: block; }
+        #log { margin-top: 20px; font-size: 12px; color: #888; text-align: center; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <div id="player"></div>
+<div id="player-box">
+    <video id="video" controls autoplay crossorigin="anonymous"></video>
 </div>
-<div id="status">Bypassing Network Restrictions...</div>
+<div id="log">INITIATING DECRYPTION...</div>
 
 <script>
-const status = document.getElementById('status');
+const log = (msg) => document.getElementById('log').innerText = msg;
+const video = document.getElementById('video');
 
-// Stream & DRM Keys
-const manifestUrl = 'https://times-ott-live.akamaized.net';
+// 1. We use a "Local" version of Shaka Player to avoid the CDN 403 error
+const shakaUrl = "https://cdn.jsdelivr.net";
+const streamUrl = "https://times-ott-live.akamaized.net";
+
 const keyId = '40f019b86241d23ef075633fd7f1e927';
 const keyVal = '058dec845bd340178a388edd104a015e';
 
-// Using Bitmovin Player as it often handles ISP redirects better than Shaka
-const config = {
-  key: 'YOUR_FREE_BITMOVIN_KEY_OR_TRIAL', // Bitmovin needs a key, but we will try a generic DASH config
-  source: {
-    dash: manifestUrl,
-    drm: {
-      clearkey: [{
-        keyId: keyId,
-        key: keyVal
-      }]
+async function loadPlayer() {
+    log("FETCHING ENGINE VIA ALTERNATE ROUTE...");
+    try {
+        // We use a different proxy: Cloudflare Workers (often not blocked by mobile data)
+        const proxyUrl = 'https://api.codetabs.com';
+        
+        const scriptResp = await fetch(proxyUrl + encodeURIComponent(shakaUrl));
+        const scriptText = await scriptResp.text();
+        
+        const scriptBlob = new Blob([scriptText], { type: 'application/javascript' });
+        const scriptObjectURL = URL.createObjectURL(scriptBlob);
+        
+        const scriptTag = document.createElement('script');
+        scriptTag.src = scriptObjectURL;
+        scriptTag.onload = () => {
+            log("ENGINE LOADED. STARTING STREAM...");
+            setupShaka();
+        };
+        document.head.appendChild(scriptTag);
+    } catch (e) {
+        log("ISP BLOCKED ALL ROUTES. PLEASE USE 1.1.1.1 VPN.");
     }
-  },
-  playback: { autoplay: true, muted: true }
-};
-
-// Fallback to a super-simple DASH.js load if Bitmovin fails
-function loadSimple() {
-    const s = document.createElement('script');
-    s.src = "https://cdn.dashjs.org";
-    s.onload = () => {
-        const player = dashjs.MediaPlayer().create();
-        player.setProtectionData({
-            "org.w3.clearkey": {
-                "clearkeys": { [keyId]: keyVal }
-            }
-        });
-        player.initialize(document.querySelector("#player"), manifestUrl, true);
-        status.innerText = "STREAMING (DASH.JS MODE)";
-    };
-    document.head.appendChild(s);
 }
 
-// Check if we can reach the manifest
-fetch('https://api.allorigins.win' + encodeURIComponent(manifestUrl))
-    .then(r => {
-        if(r.ok) {
-            status.innerText = "Manifest Reachable. Starting Player...";
-            loadSimple();
-        } else {
-            status.innerText = "Carrier Blocked the Stream (403/404).";
+async function setupShaka() {
+    const player = new shaka.Player(video);
+    
+    player.configure({
+        drm: {
+            clearKeys: { [keyId]: keyVal }
         }
-    })
-    .catch(() => {
-        status.innerText = "Network Error: Proxy Blocked.";
     });
 
+    player.addEventListener('error', (e) => {
+        log("STREAM ERROR: " + e.detail.code);
+    });
+
+    try {
+        // Attempting to load stream directly - if this fails, the video itself is blocked
+        await player.load(streamUrl);
+        log("LIVE: MOVIES NOW HD");
+    } catch (e) {
+        log("CARRIER BLOCKED VIDEO DATA (ERR " + e.code + ")");
+    }
+}
+
+loadPlayer();
 </script>
 </body>
 </html>
+
