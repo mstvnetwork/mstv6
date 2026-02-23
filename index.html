@@ -1,56 +1,15 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>ISP Isolation Test</title>
-    <!-- Using a very stable CDN link for the test -->
-    <script src="https://cdn.jsdelivr.net"></script>
-    <style>
-        body { margin: 0; background: #111; color: #0f0; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; font-family: sans-serif; }
-        #vid-box { width: 90%; max-width: 640px; border: 2px solid #444; }
-        video { width: 100%; height: auto; display: block; }
-        #log { margin-top: 20px; font-weight: bold; }
-    </style>
-</head>
-<body>
-
-<div id="vid-box">
-    <video id="video" controls autoplay></video>
-</div>
-<div id="log">TESTING CONNECTION...</div>
-
-<script>
-const log = document.getElementById('log');
-// This is a PUBLIC, NO-DRM test stream from DASH-IF
-const testStream = "https://dash.akamaized.net";
-
-function runTest() {
-    if (typeof dashjs === 'undefined') {
-        log.innerText = "RESULT: ISP BLOCKED THE PLAYER CODE (CDN BLOCK)";
-        log.style.color = "red";
-        return;
-    }
-
-    try {
-        const player = dashjs.MediaPlayer().create();
-        player.initialize(document.getElementById('video'), testStream, true);
-        
-        player.on('canPlay', () => {
-            log.innerText = "RESULT: SUCCESS! YOUR DATA ALLOWS STREAMS.";
-            log.style.color = "#00ff00";
-        });
-
-        player.on('error', (e) => {
-            log.innerText = "RESULT: PLAYER LOADED, BUT VIDEO DATA BLOCKED.";
-            log.style.color = "orange";
-        });
-    } catch (e) {
-        log.innerText = "RESULT: PLAYER CRASHED.";
-    }
-}
-
-// Wait for script to load
-setTimeout(runTest, 1000);
-</script>
+<html>
+<head><title>Native Test</title></head>
+<body style="background:#000; color:#0f0; text-align:center; font-family:sans-serif;">
+    <h2>Native Video Test</h2>
+    <!-- This is a direct MP4 link (No DASH, No DRM) -->
+    <video controls autoplay width="100%" src="https://www.w3schools.com"></video>
+    <div id="res" style="margin-top:20px;">CHECKING VIDEO ACCESS...</div>
 </body>
+<script>
+    const v = document.querySelector('video');
+    v.onplay = () => document.getElementById('res').innerText = "SUCCESS: YOU CAN WATCH VIDEO!";
+    v.onerror = () => document.getElementById('res').innerText = "FAILURE: ISP BLOCKED VIDEO DATA!";
+</script>
 </html>
