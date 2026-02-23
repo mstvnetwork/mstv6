@@ -1,68 +1,28 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stream Player</title>
-    <!-- Shaka Player UI Styles from cdnjs -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com">
-    <!-- Shaka Player Library from cdnjs -->
-    <script src="https://cdnjs.cloudflare.com"></script>
-    <style>
-        body { margin: 0; padding: 0; background: #000; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
-        #player-container { width: 100%; height: 100%; }
-        video { width: 100%; height: 100%; }
-    </style>
-</head>
-<body>
-    <div id="player-container" data-shaka-player-container>
-        <video autoplay id="video" data-shaka-player></video>
-    </div>
-
-    <script>
-    async function initPlayer() {
-        const video = document.getElementById('video');
-        const ui = video['ui'];
-        const controls = ui.getControls();
-        const player = controls.getPlayer();
-
-        // 1. Configure ClearKeys (Hex format)
-        player.configure({
-            drm: {
-                clearKeys: {
-    '7QaM+E8GQMy8fA45XAoHLg==': 'u3IhkPK7RGORAgQRp9CCiw=='
-}
-
+<script>
+    function init() {
+        const protData = {
+            "org.w3.clearkey": {
+                "clearkeys": {
+                    "nrQFDeRLSAKTLifXUIPiZg": "FmY0xnWCPCNaSpRG-tUuTQ"
+                }
             }
-        });
+        };
+        var video,
+            player,
+            url = "https://media.axprod.net/TestVectors/v7-MultiDRM-SingleKey/Manifest_1080p_ClearKey.mpd";
 
-        // 2. Request Filter (Helps bypass simple CORS/Referer blocks)
-        player.getNetworkingEngine().registerRequestFilter(function(type, request) {
-            if (type == shaka.net.NetworkingEngine.RequestType.MANIFEST || 
-                type == shaka.net.NetworkingEngine.RequestType.SEGMENT) {
-                // Mimic official source if needed
-                request.headers['Origin'] = 'https://www.zee5.com';
-                request.headers['Referer'] = 'https://www.zee5.com';
-            }
-        });
-
-        // 3. Load the Stream with a CORS Proxy
-try {
-    // This proxy strips the 'origin' header so CloudFront doesn't block you
-    const proxy = 'https://corsproxy.io?'; 
-    const manifestUri = 'https://d1g8wgjurz8via.cloudfront.net?';
-    
-    await player.load(proxy + encodeURIComponent(manifestUri));
-    console.log('Stream successfully bypassed CORS!');
-} catch (error) {
-    console.error('Shaka Error:', error.code, error);
-}
-
+        video = document.querySelector("video");
+        player = dashjs.MediaPlayer().create();
+        player.initialize(video, url, true);
+        player.setProtectionData(protData);
+    }
+    function check() {
+        if (location.protocol === 'http:' && location.hostname !== 'localhost') {
+            var out = 'This page has been loaded under http. This might result in the EME APIs not being available to the player and any DRM-protected content will fail to play. ' +
+                'If you wish to test manifest URLs that require EME support, then <a href=\'https:' + window.location.href.substring(window.location.protocol.length) + '\'>reload this page under https</a>.'
+            var div = document.getElementById('http-warning');
+            div.innerHTML = out;
+            div.style.display = ''
         }
     }
-
-    // Initialize after Shaka UI is ready
-    document.addEventListener('shaka-ui-loaded', initPlayer);
-    </script>
-</body>
-</html>
+</script>
