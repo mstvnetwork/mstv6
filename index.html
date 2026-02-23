@@ -3,31 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MSTV Player Pro</title>
+    <title>MSTV Player Pro 2026</title>
     <script src="shaka.js"></script>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; }
         #video-container, #iframe-container { width: 100%; height: 100vh; display: none; }
         video, iframe { width: 100%; height: 100%; border: none; }
-        
-        /* Navigation Buttons */
         .nav { position: absolute; top: 15px; left: 15px; z-index: 100; display: flex; gap: 8px; }
-        .btn { background: rgba(30, 30, 30, 0.8); color: #fff; border: 1px solid #444; padding: 10px 15px; cursor: pointer; border-radius: 6px; font-weight: bold; transition: 0.2s; }
-        .btn:hover { background: #e91e63; border-color: #fff; }
-
-        /* Loading Spinner */
+        .btn { background: rgba(30, 30, 30, 0.8); color: #fff; border: 1px solid #444; padding: 10px 15px; cursor: pointer; border-radius: 6px; font-weight: bold; }
+        .btn:hover { background: #e91e63; }
         #loader { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 50; display: flex; flex-direction: column; align-items: center; }
         .spinner { width: 50px; height: 50px; border: 5px solid rgba(255, 255, 255, 0.1); border-top: 5px solid #e91e63; border-radius: 50%; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .load-text { color: white; margin-top: 15px; font-size: 14px; letter-spacing: 1px; }
+        .load-text { color: white; margin-top: 15px; font-size: 12px; letter-spacing: 2px; }
     </style>
 </head>
 <body>
 
-    <div id="loader">
-        <div class="spinner"></div>
-        <div class="load-text">FETCHING STREAM...</div>
-    </div>
+    <div id="loader"><div class="spinner"></div><div class="load-text">LOADING SECURE STREAM...</div></div>
 
     <div class="nav">
         <button class="btn" onclick="loadChannel('1')">Bollywood</button>
@@ -35,12 +28,14 @@
         <button class="btn" onclick="loadChannel('3')">Zee TV</button>
     </div>
 
-    <div id="video-container">
-        <video id="video" controls autoplay playsinline muted></video>
-    </div>
+    <div id="video-container"><video id="video" controls autoplay playsinline muted></video></div>
 
     <div id="iframe-container">
-        <iframe id="external-player" allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe>
+        <!-- Sandbox blocks 'allow-top-navigation' to stop redirections -->
+        <iframe id="external-player" 
+                sandbox="allow-scripts allow-same-origin allow-forms allow-presentation" 
+                allow="autoplay; encrypted-media; fullscreen" 
+                allowfullscreen></iframe>
     </div>
 
     <script>
@@ -52,9 +47,22 @@
             const video = document.getElementById('video');
             player = new shaka.Player(video);
 
-            // Hide loader when video actually starts playing
+            // Hide loader when video starts
             video.addEventListener('playing', () => document.getElementById('loader').style.display = 'none');
-            
+
+            // Force all DASH segments through Worker to hide CloudFront URL
+            player.getNetworkingEngine().registerRequestFilter((type, request) => {
+                if (type === shaka.net.NetworkingEngine.RequestType.SEGMENT && request.uris[0].includes('cloudfront.net')) {
+                    const segmentPath = new URL(request.uris[0]).pathname;
+                    request.uris = [workerBase + "/play/ch3" + segmentPath];
+                }
+            });
+
+            // Decryption Keys for Zee TV
+            player.configure({
+                drm: { clearKeys: { 'ed068cf84f0640ccbc7c0e395c0a272e': 'bb722190f2bb446391020411a7d0828b' } }
+            });
+
             loadChannel('1');
         }
 
@@ -68,21 +76,20 @@
             loader.style.display = 'flex';
             videoContainer.style.display = 'none';
             iframeContainer.style.display = 'none';
-            iframe.src = "";
-            video.pause();
+            iframe.src = "about:blank"; // Kill previous scripts
+            if (player) await player.unload();
 
             if (id === '2') {
                 iframeContainer.style.display = 'block';
                 iframe.src = workerBase + "/play/ch2";
-                // iFrames don't have a "playing" event, so we hide loader after 3 seconds
-                iframe.onload = () => setTimeout(() => loader.style.display = 'none', 1500);
+                iframe.onload = () => setTimeout(() => loader.style.display = 'none', 2000);
             } else {
                 videoContainer.style.display = 'block';
                 try {
                     await player.load(workerBase + "/play/ch" + id);
                 } catch (e) {
                     loader.style.display = 'none';
-                    alert("Error: " + e.code);
+                    console.error("Error:", e.code);
                 }
             }
         }
