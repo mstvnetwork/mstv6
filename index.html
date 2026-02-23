@@ -3,75 +3,82 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Movies Now HD - Fixed</title>
-    
-    <!-- Using cdnjs: More stable for GitHub Pages with explicit cross-origin headers -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com" crossorigin="anonymous">
-    <script src="https://cdnjs.cloudflare.com" crossorigin="anonymous"></script>
-
+    <title>Movies Now HD - Mobile Data Fix</title>
     <style>
-        body { margin: 0; background: #000; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; color: white; font-family: sans-serif; }
-        .container { width: 90%; max-width: 800px; border: 1px solid #333; position: relative; }
-        video { width: 100%; height: auto; display: block; }
-        #status { margin-top: 15px; color: #00ff00; font-weight: bold; background: rgba(0,0,0,0.6); padding: 5px 10px; border-radius: 4px; }
+        body { margin: 0; background: #000; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; color: #0f0; font-family: monospace; }
+        .container { width: 90%; max-width: 800px; border: 1px solid #222; }
+        video { width: 100%; height: auto; background: #111; }
+        #status { margin-top: 15px; text-align: center; }
     </style>
 </head>
 <body>
 
-<div class="container" data-shaka-player-container>
-    <video id="video" data-shaka-player-video autoplay></video>
+<div class="container">
+    <video id="video" controls autoplay crossorigin="anonymous"></video>
 </div>
-<div id="status">Loading Player...</div>
+<div id="status">Connecting to Stream...</div>
 
 <script>
-// manifestUri uses AllOrigins to bypass Akamai's CORS block on GitHub Pages
-const rawUri = 'https://times-ott-live.akamaized.net';
-const manifestUri = 'https://api.allorigins.win' + encodeURIComponent(rawUri);
+const status = document.getElementById('status');
+const video = document.getElementById('video');
+
+// Try a different, faster proxy for Mobile Data [Source: corsproxy.io]
+const proxy = 'https://corsproxy.io?';
+const rawStream = 'https://times-ott-live.akamaized.net';
+const manifestUri = proxy + encodeURIComponent(rawStream);
+
+const shakaLib = 'https://cdnjs.cloudflare.com';
 
 const clearKeyId = '40f019b86241d23ef075633fd7f1e927';
 const clearKeyValue = '058dec845bd340178a388edd104a015e';
 
-async function initPlayer() {
-    const video = document.getElementById('video');
-    const status = document.getElementById('status');
+async function start() {
+    try {
+        status.innerText = "Loading Decryption Engine...";
+        
+        // Injecting script via Proxy to bypass Mobile Data blocking
+        const scriptResponse = await fetch(proxy + encodeURIComponent(shakaLib));
+        const scriptContent = await scriptResponse.text();
+        const scriptTag = document.createElement('script');
+        scriptTag.textContent = scriptContent;
+        document.head.appendChild(scriptTag);
 
-    // 1. Safety check for Shaka
-    if (typeof shaka === 'undefined') {
+        // Wait a split second for the browser to register 'shaka'
+        setTimeout(initPlayer, 500);
+    } catch (e) {
+        status.innerText = "Connection Blocked by Carrier. Please use a VPN.";
         status.style.color = "red";
-        status.innerText = "Error: Library failed to load. Try a different browser.";
+    }
+}
+
+async function initPlayer() {
+    if (typeof shaka === 'undefined') {
+        status.innerText = "Error: Library Init Failed.";
         return;
     }
 
-    // 2. Setup Player
-    const ui = video['ui'];
-    const player = ui.getControls().getPlayer();
+    const player = new shaka.Player(video);
 
-    // 3. ClearKey Configuration
     player.configure({
         drm: {
             clearKeys: { [clearKeyId]: clearKeyValue }
         }
     });
 
-    // 4. Handle Errors
     player.addEventListener('error', (event) => {
-        status.style.color = "red";
         status.innerText = "Stream Error: " + event.detail.code;
-        console.error('Shaka Error:', event.detail);
     });
 
     try {
         await player.load(manifestUri);
-        status.innerText = "Streaming: Movies Now HD";
+        status.innerText = "LIVE: MOVIES NOW HD";
     } catch (e) {
-        status.style.color = "red";
-        status.innerText = "Load Failed (Check Console)";
-        console.error('Load Error:', e);
+        status.innerText = "Load Failed. Carrier may be blocking Akamai.";
+        console.error(e);
     }
 }
 
-// Start only when UI is fully ready
-document.addEventListener('shaka-ui-loaded', initPlayer);
+start();
 </script>
 </body>
 </html>
