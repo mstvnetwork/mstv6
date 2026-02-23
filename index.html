@@ -32,41 +32,42 @@
     const kid = 'ed068cf84f0640ccbc7c0e395c0a272e';
     const key = 'bb722190f2bb446391020411a7d0828b';
 
-    async function loadEngine() {
+        async function loadEngine() {
         status.innerText = "BYPASSING CARRIER SCRIPT FILTER...";
         try {
-            // Fetching Shaka Player via your Worker as text to bypass ISP 'CORB' blocking
             const resp = await fetch(myWorker + "/shaka.js", { mode: 'cors' });
-            
             if (!resp.ok) throw new Error("Worker Error: " + resp.status);
             
             const scriptText = await resp.text();
             const script = document.createElement('script');
             script.textContent = scriptText;
+            
+            // This event listener ensures we only start AFTER the script is in the DOM
+            script.onload = () => { console.log("Script Tag Loaded"); };
             document.head.appendChild(script);
             
-            status.innerText = "ENGINE DECODED. CONNECTING TO STREAM...";
+            status.innerText = "ENGINE DECODED. WAITING FOR ACTIVATION...";
             status.className = "success";
             
-            // Allow a small delay for the browser to register the 'shaka' object
-            setTimeout(startPlayer, 1000);
+            // We now "Poll" every 500ms to see if shaka is ready instead of just guessing with 1000ms
+            const checkShaka = setInterval(() => {
+                if (typeof shaka !== 'undefined') {
+                    clearInterval(checkShaka);
+                    status.innerText = "ENGINE ACTIVE. CONNECTING TO STREAM...";
+                    startPlayer();
+                }
+            }, 500);
+
         } catch (e) {
-            status.innerText = "CORS/DNS BLOCKED BY CARRIER. CHECK WORKER LOGS.";
+            status.innerText = "CORS/DNS BLOCKED. CHECK WORKER.";
             status.className = "error";
-            console.error("Critical Load Error:", e);
         }
     }
 
     async function startPlayer() {
-        if (typeof shaka === 'undefined') {
-            status.innerText = "SHAKA INIT FAILED. RETRYING...";
-            location.reload();
-            return;
-        }
-
+        // We use the UI-less player for maximum compatibility on mobile data
         const player = new shaka.Player(video);
         
-        // Configuration for ClearKey Decryption [Source: Broadpeak]
         player.configure({
             drm: {
                 clearKeys: { [kid]: key }
@@ -79,17 +80,16 @@
         });
 
         try {
-            // Loading the proxied manifest through your Worker to bypass Cloudfront restrictions
             const proxiedUrl = myWorker + "/?url=" + encodeURIComponent(rawManifest);
             await player.load(proxiedUrl);
-            
-            status.innerText = "LIVE: ZEE TV HD (SECURE TUNNEL ACTIVE)";
+            status.innerText = "LIVE: ZEE TV HD";
             status.className = "success";
         } catch (e) {
-            status.innerText = "CARRIER BLOCKED VIDEO DATA (CODE " + e.code + ")";
+            status.innerText = "CARRIER BLOCKED VIDEO DATA (ERR " + e.code + ")";
             status.className = "error";
         }
     }
+
 
     // Start the loading sequence
     loadEngine();
