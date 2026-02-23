@@ -2,71 +2,45 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ZeeTV HD - Private Proxy</title>
-    <!-- Using a more robust CDN that might bypass your ISP's Cloudflare block -->
-    <script src="https://unpkg.com"></script>
+    <title>ZeeTV HD - Private Embed</title>
     <style>
         body { margin: 0; background: #000; color: #0f0; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; font-family: monospace; }
-        .container { width: 95%; max-width: 800px; border: 1px solid #333; box-shadow: 0 0 20px #222; }
+        .container { width: 95%; max-width: 800px; border: 1px solid #333; }
         video { width: 100%; height: auto; display: block; background: #111; }
-        #status { margin-top: 15px; font-size: 14px; color: #00ff00; background: rgba(0,255,0,0.1); padding: 5px 10px; border-radius: 4px; }
+        #status { margin-top: 15px; font-size: 14px; }
     </style>
 </head>
 <body>
+    <div class="container"><video id="video" controls autoplay crossorigin="anonymous"></video></div>
+    <div id="status">BYPASSING CARRIER FILTERS...</div>
 
-<div class="container">
-    <video id="video" controls autoplay crossorigin="anonymous"></video>
-</div>
-<div id="status">CONNECTING VIA PRIVATE WORKER...</div>
+    <script>
+        // 1. YOUR WORKER URL
+        const myWorker = "https://your-worker-name.your-subdomain.workers.dev";
+        
+        // 2. Load Shaka Engine via Proxy [Source: jsDelivr]
+        const shakaLib = "https://cdn.jsdelivr.net";
+        const script = document.createElement('script');
+        script.src = myWorker + encodeURIComponent(shakaLib);
+        document.head.appendChild(script);
 
-<script>
-// 1. UPDATE THIS WITH YOUR CLOUDFLARE WORKER URL
-const myWorker = "https://your-worker-name.your-subdomain.workers.dev";
+        // 3. ZeeTV Config
+        const rawManifest = 'https://d1g8wgjurz8via.cloudfront.net';
+        const kid = 'ed068cf84f0640ccbc7c0e395c0a272e';
+        const key = 'bb722190f2bb446391020411a7d0828b';
 
-// 2. ZeeTV Sniffed Data
-const rawManifest = 'https://d1g8wgjurz8via.cloudfront.net';
-const manifestUri = myWorker + encodeURIComponent(rawManifest);
+        script.onload = () => {
+            const video = document.getElementById('video');
+            const player = new shaka.Player(video);
+            player.configure({ drm: { clearKeys: { [kid]: key } } });
 
-const kid = 'ed068cf84f0640ccbc7c0e395c0a272e';
-const key = 'bb722190f2bb446391020411a7d0828b';
-
-async function init() {
-    const video = document.getElementById('video');
-    const status = document.getElementById('status');
-
-    if (typeof shaka === 'undefined') {
-        status.innerText = "ISP BLOCKED PLAYER ENGINE. USE 1.1.1.1 VPN.";
-        status.style.color = "red";
-        return;
-    }
-
-    const player = new shaka.Player(video);
-
-    // Apply Sniffed ClearKeys [Source: Broadpeak DRM]
-    player.configure({
-        drm: {
-            clearKeys: { [kid]: key }
-        }
-    });
-
-    player.addEventListener('error', (e) => {
-        status.innerText = "STREAM ERROR: " + e.detail.code;
-        status.style.color = "orange";
-    });
-
-    try {
-        await player.load(manifestUri);
-        status.innerText = "LIVE: ZEE TV HD (PROXY ACTIVE)";
-    } catch (e) {
-        status.innerText = "LOAD FAILED. CHECK WORKER LOGS.";
-        status.style.color = "red";
-        console.error(e);
-    }
-}
-
-// Start with delay to ensure script is loaded
-setTimeout(init, 1000);
-</script>
+            player.load(myWorker + encodeURIComponent(rawManifest)).then(() => {
+                document.getElementById('status').innerText = "LIVE: ZEE TV HD";
+                document.getElementById('status').style.color = "#00ff00";
+            }).catch(e => {
+                document.getElementById('status').innerText = "STREAM BLOCKED (ERROR " + e.code + ")";
+            });
+        };
+    </script>
 </body>
 </html>
