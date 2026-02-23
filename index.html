@@ -48,31 +48,39 @@
         startPlayer();
     }
 
-    async function startPlayer() {
-        const player = new shaka.Player(video);
-        
+       async function startPlayer() {
+        const player = new shaka.Player(); // No video element in constructor
+        await player.attach(video); // Modern attach method
+
         player.configure({
-            drm: {
-                clearKeys: { [kid]: key }
+            drm: { clearKeys: { [kid]: key } },
+            streaming: {
+                bufferingGoal: 30,
+                rebufferingGoal: 15,
+                retryParameters: { maxAttempts: 5, baseDelay: 1000 }
             }
         });
 
         player.addEventListener('error', (event) => {
             status.innerText = "STREAM ERROR: " + event.detail.code;
             status.className = "error";
+            if (event.detail.code === 4000) {
+                status.innerText = "Error 4000: Worker failed to fetch segments.";
+            }
         });
 
         try {
-            // Using your worker to bypass Cloudfront and ISP blocks
+            // Note the use of /?url= to ensure the worker parses the query correctly
             const proxiedUrl = myWorker + "/?url=" + encodeURIComponent(rawManifest);
             await player.load(proxiedUrl);
             status.innerText = "LIVE: ZEE TV HD";
             status.className = "success";
         } catch (e) {
-            status.innerText = "CARRIER BLOCKED VIDEO DATA (ERR " + e.code + ")";
+            status.innerText = "LOAD FAILED (CODE " + e.code + ")";
             status.className = "error";
         }
     }
+
 
     // Start the process
     window.onload = init;
