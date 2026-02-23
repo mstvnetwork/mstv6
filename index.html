@@ -1,37 +1,73 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Stream Test</title>
-    <script src="https://cdn.jsdelivr.net"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movies Now HD - DRM Player</title>
+    <!-- Shaka Player UI Styles -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com">
+    <!-- Shaka Player Library -->
+    <script src="https://cdnjs.cloudflare.com"></script>
     <style>
-        body { background: #111; color: #fff; text-align: center; font-family: sans-serif; }
-        video { width: 80%; border: 2px solid #333; margin-top: 20px; }
+        body { margin: 0; background: #000; display: flex; justify-content: center; align-items: center; height: 100vh; font-family: sans-serif; }
+        .container { width: 100%; max-width: 900px; border: 2px solid #333; }
+        video { width: 100%; height: auto; }
     </style>
 </head>
 <body>
-    <h1>Netlify Edge Proxy Test</h1>
-    <video id="video" controls autoplay muted></video>
-    <p id="status">Loading...</p>
 
-    <script>
-        const video = document.getElementById('video');
-        const status = document.getElementById('status');
-        
-        // TEST URL: A public HLS stream
-        const testStream = "https://test-streams.mux.dev";
-        const proxyUrl = "/proxy-stream/?url=" + encodeURIComponent(testStream);
+<div class="container" data-shaka-player-container>
+    <video id="video" data-shaka-player-video autoplay></video>
+</div>
 
-        if (Hls.isSupported()) {
-            const hls = new Hls();
-            hls.loadSource(proxyUrl);
-            hls.attachMedia(video);
-            hls.on(Hls.Events.MANIFEST_PARSED, () => {
-                status.innerText = "Proxy working! Stream playing.";
-                status.style.color = "lime";
-            });
-        } else {
-            status.innerText = "HLS not supported in this browser.";
+<script>
+const manifestUri = 'https://times-ott-live.akamaized.net';
+const clearKeyId = '40f019b86241d23ef075633fd7f1e927';
+const clearKeyValue = '058dec845bd340178a388edd104a015e';
+
+async function initApp() {
+    // Install polyfills to patch browser incompatibilities
+    shaka.polyfill.installAll();
+
+    // Check if the browser supports the player
+    if (shaka.Player.isBrowserSupported()) {
+        initPlayer();
+    } else {
+        console.error('Browser not supported!');
+    }
+}
+
+async function initPlayer() {
+    const video = document.getElementById('video');
+    const ui = video['ui'];
+    const player = new shaka.Player(video);
+
+    // Configure ClearKey DRM [Source: Shaka Docs]
+    player.configure({
+        drm: {
+            clearKeys: {
+                [clearKeyId]: clearKeyValue
+            }
         }
-    </script>
+    });
+
+    // Handle errors
+    player.addEventListener('error', (event) => {
+        console.error('Error code', event.detail.code, 'object', event.detail);
+    });
+
+    try {
+        await player.load(manifestUri);
+        console.log('The video has now been loaded!');
+    } catch (e) {
+        console.error('Error loading manifest', e);
+    }
+}
+
+document.addEventListener('shaka-ui-loaded', initApp);
+document.addEventListener('shaka-ui-load-failed', () => console.error('UI failed to load'));
+</script>
+
 </body>
 </html>
+
