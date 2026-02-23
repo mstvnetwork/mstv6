@@ -43,51 +43,63 @@
         <iframe id="external-player" allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe>
     </div>
 
-    <script>
-        const workerBase = "https://my-proxy.mchoudhry482.workers.dev";
-        let player;
+// ... (Keep your CSS and HTML from previous response) ...
 
-        async function initApp() {
-            shaka.polyfill.installAll();
-            const video = document.getElementById('video');
-            player = new shaka.Player(video);
+<script>
+    const workerBase = "https://my-proxy.mchoudhry482.workers.dev";
+    let player;
 
-            // Hide loader when video actually starts playing
-            video.addEventListener('playing', () => document.getElementById('loader').style.display = 'none');
-            
-            loadChannel('1');
-        }
+    async function initApp() {
+        shaka.polyfill.installAll();
+        const video = document.getElementById('video');
+        player = new shaka.Player(video);
 
-        async function loadChannel(id) {
-            const loader = document.getElementById('loader');
-            const videoContainer = document.getElementById('video-container');
-            const iframeContainer = document.getElementById('iframe-container');
-            const iframe = document.getElementById('external-player');
-            const video = document.getElementById('video');
+        // CONFIGURING THE KEYS FOR CH3 (Zee TV)
+        player.configure({
+          drm: {
+            clearKeys: {
+              'ed068cf84f0640ccbc7c0e395c0a272e': 'bb722190f2bb446391020411a7d0828b'
+            }
+          }
+        });
 
-            loader.style.display = 'flex';
-            videoContainer.style.display = 'none';
-            iframeContainer.style.display = 'none';
-            iframe.src = "";
-            video.pause();
+        video.addEventListener('playing', () => document.getElementById('loader').style.display = 'none');
+        loadChannel('1');
+    }
 
-            if (id === '2') {
-                iframeContainer.style.display = 'block';
-                iframe.src = workerBase + "/play/ch2";
-                // iFrames don't have a "playing" event, so we hide loader after 3 seconds
-                iframe.onload = () => setTimeout(() => loader.style.display = 'none', 1500);
-            } else {
-                videoContainer.style.display = 'block';
-                try {
-                    await player.load(workerBase + "/play/ch" + id);
-                } catch (e) {
-                    loader.style.display = 'none';
-                    alert("Error: " + e.code);
-                }
+    async function loadChannel(id) {
+        const loader = document.getElementById('loader');
+        const videoContainer = document.getElementById('video-container');
+        const iframeContainer = document.getElementById('iframe-container');
+        const iframe = document.getElementById('external-player');
+        const video = document.getElementById('video');
+
+        loader.style.display = 'flex';
+        videoContainer.style.display = 'none';
+        iframeContainer.style.display = 'none';
+        iframe.src = "";
+        video.pause();
+
+        if (id === '2') {
+            // Masked URL through Worker
+            iframeContainer.style.display = 'block';
+            iframe.src = workerBase + "/play/ch2"; 
+            iframe.onload = () => setTimeout(() => loader.style.display = 'none', 1500);
+        } else {
+            videoContainer.style.display = 'block';
+            try {
+                // Shaka Player handles HLS (ch1) and DASH (ch3) automatically
+                await player.load(workerBase + "/play/ch" + id);
+            } catch (e) {
+                loader.style.display = 'none';
+                console.error('Shaka Error:', e.code);
+                alert("Error: " + e.code);
             }
         }
+    }
 
-        document.addEventListener('DOMContentLoaded', initApp);
-    </script>
+    document.addEventListener('DOMContentLoaded', initApp);
+</script>
+
 </body>
 </html>
