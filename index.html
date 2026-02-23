@@ -1,28 +1,41 @@
-<script>
-    function init() {
-        const protData = {
-            "org.w3.clearkey": {
-                "clearkeys": {
-                    "nrQFDeRLSAKTLifXUIPiZg": "FmY0xnWCPCNaSpRG-tUuTQ"
-                }
-            }
-        };
-        var video,
-            player,
-            url = "https://media.axprod.net/TestVectors/v7-MultiDRM-SingleKey/Manifest_1080p_ClearKey.mpd";
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Stream Tester Bypass</title>
+    <!-- Open-source Shaka Player (No license required) -->
+    <script src="https://cdnjs.cloudflare.com"></script>
+    <style>
+        body { background: #000; color: #fff; text-align: center; font-family: sans-serif; }
+        video { width: 80%; margin-top: 50px; background: #222; }
+    </style>
+</head>
+<body>
+    <h2>Custom Stream Tester</h2>
+    <video id="video" controls autoplay muted></video>
 
-        video = document.querySelector("video");
-        player = dashjs.MediaPlayer().create();
-        player.initialize(video, url, true);
-        player.setProtectionData(protData);
-    }
-    function check() {
-        if (location.protocol === 'http:' && location.hostname !== 'localhost') {
-            var out = 'This page has been loaded under http. This might result in the EME APIs not being available to the player and any DRM-protected content will fail to play. ' +
-                'If you wish to test manifest URLs that require EME support, then <a href=\'https:' + window.location.href.substring(window.location.protocol.length) + '\'>reload this page under https</a>.'
-            var div = document.getElementById('http-warning');
-            div.innerHTML = out;
-            div.style.display = ''
+    <script>
+        async function initApp() {
+            shaka.polyfill.installAll(); // Fixes browser compatibility
+            const video = document.getElementById('video');
+            const player = new shaka.Player(video);
+
+            // Configure ClearKey
+            player.configure({
+                drm: {
+                    clearKeys: {
+                        'ed068cf84f0640ccbc7c0e395c0a272e': 'bb722190f2bb446391020411a7d0828b'
+                    }
+                }
+            });
+
+            try {
+                await player.load('https://d1g8wgjurz8via.cloudfront.net/bpk-tv/Zeetv/default/main.mpd?'); 
+                console.log('Stream loaded successfully!');
+            } catch (e) {
+                console.error('Error Code:', e.code, e);
+            }
         }
-    }
-</script>
+        document.addEventListener('DOMContentLoaded', initApp);
+    </script>
+</body>
+</html>
