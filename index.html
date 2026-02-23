@@ -2,45 +2,59 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>ZeeTV HD - Private Embed</title>
+    <title>ZeeTV HD - Absolute Bypass</title>
     <style>
         body { margin: 0; background: #000; color: #0f0; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; font-family: monospace; }
         .container { width: 95%; max-width: 800px; border: 1px solid #333; }
-        video { width: 100%; height: auto; display: block; background: #111; }
-        #status { margin-top: 15px; font-size: 14px; }
+        video { width: 100%; height: auto; display: block; }
+        #status { margin-top: 15px; font-size: 14px; text-align: center; }
     </style>
 </head>
 <body>
     <div class="container"><video id="video" controls autoplay crossorigin="anonymous"></video></div>
-    <div id="status">BYPASSING CARRIER FILTERS...</div>
+    <div id="status">DECODING INTERNAL ENGINE...</div>
+
+    <!-- PASTE THE ENTIRE 12,000 LINES OF SHAKA JS CODE BELOW -->
+    <script>
+        /* PASTE COPIED CODE HERE */
+    </script>
+    <!-- PASTE THE ENTIRE SHAKA JS CODE ABOVE -->
 
     <script>
-        // 1. YOUR WORKER URL
+        // 1. YOUR CLOUDFLARE WORKER URL
         const myWorker = "https://your-worker-name.your-subdomain.workers.dev";
         
-        // 2. Load Shaka Engine via Proxy [Source: jsDelivr]
-        const shakaLib = "https://cdn.jsdelivr.net";
-        const script = document.createElement('script');
-        script.src = myWorker + encodeURIComponent(shakaLib);
-        document.head.appendChild(script);
-
-        // 3. ZeeTV Config
+        // 2. ZeeTV Sniffed Data
         const rawManifest = 'https://d1g8wgjurz8via.cloudfront.net';
         const kid = 'ed068cf84f0640ccbc7c0e395c0a272e';
         const key = 'bb722190f2bb446391020411a7d0828b';
 
-        script.onload = () => {
+        async function init() {
+            const status = document.getElementById('status');
             const video = document.getElementById('video');
+
+            if (typeof shaka === 'undefined') {
+                status.innerText = "ERROR: ENGINE FAILED TO LOAD.";
+                return;
+            }
+
+            status.innerText = "ENGINE READY. CONNECTING VIA WORKER...";
             const player = new shaka.Player(video);
             player.configure({ drm: { clearKeys: { [kid]: key } } });
 
-            player.load(myWorker + encodeURIComponent(rawManifest)).then(() => {
-                document.getElementById('status').innerText = "LIVE: ZEE TV HD";
-                document.getElementById('status').style.color = "#00ff00";
-            }).catch(e => {
-                document.getElementById('status').innerText = "STREAM BLOCKED (ERROR " + e.code + ")";
-            });
-        };
+            try {
+                // We use your private worker to pull the manifest and segments
+                await player.load(myWorker + encodeURIComponent(rawManifest));
+                status.innerText = "LIVE: ZEE TV HD";
+                status.style.color = "#00ff00";
+            } catch (e) {
+                status.innerText = "CARRIER BLOCKED VIDEO DATA (ERR " + e.code + ")";
+                status.style.color = "red";
+            }
+        }
+        
+        // Short delay to ensure browser registers the hardcoded script
+        setTimeout(init, 1000);
     </script>
 </body>
 </html>
