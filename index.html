@@ -4,12 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ZeeTV HD - MSTV Network</title>
+    <!-- Direct load from your repo to bypass ISP filter -->
     <script src="shaka.js"></script>
-<style>
+    <style>
         body { margin: 0; background: #000; color: #0f0; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; font-family: 'Courier New', Courier, monospace; overflow: hidden; }
         .player-container { width: 95%; max-width: 800px; border: 1px solid #333; box-shadow: 0 0 30px rgba(0,255,0,0.1); background: #111; position: relative; }
         video { width: 100%; height: auto; display: block; }
-        #status { margin-top: 20px; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; padding: 10px; border-radius: 5px; background: rgba(255,255,255,0.05); }
+        #status { margin-top: 20px; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; padding: 10px; border-radius: 5px; background: rgba(255,255,255,0.05); }
         .error { color: #ff4444; }
         .success { color: #00ff00; }
     </style>
@@ -28,45 +29,26 @@
     // 1. YOUR VERIFIED CLOUDFLARE WORKER URL
     const myWorker = "https://my-proxy.mchoudhry482.workers.dev";
     
-    // 2. ZEETV SNIFFED DATA [Source: Broadpeak DRM / Cloudfront]
+    // 2. FIXED ZEETV DATA (Full Path + Sniffed Keys)
     const rawManifest = 'https://d1g8wgjurz8via.cloudfront.net';
     const kid = 'ed068cf84f0640ccbc7c0e395c0a272e';
     const key = 'bb722190f2bb446391020411a7d0828b';
 
-        async function loadEngine() {
-        status.innerText = "BYPASSING CARRIER SCRIPT FILTER...";
-        try {
-            const resp = await fetch(myWorker + "/shaka.js", { mode: 'cors' });
-            if (!resp.ok) throw new Error("Worker Error: " + resp.status);
-            
-            const scriptText = await resp.text();
-            const script = document.createElement('script');
-            script.textContent = scriptText;
-            
-            // This event listener ensures we only start AFTER the script is in the DOM
-            script.onload = () => { console.log("Script Tag Loaded"); };
-            document.head.appendChild(script);
-            
-            status.innerText = "ENGINE DECODED. WAITING FOR ACTIVATION...";
-            status.className = "success";
-            
-            // We now "Poll" every 500ms to see if shaka is ready instead of just guessing with 1000ms
-            const checkShaka = setInterval(() => {
-                if (typeof shaka !== 'undefined') {
-                    clearInterval(checkShaka);
-                    status.innerText = "ENGINE ACTIVE. CONNECTING TO STREAM...";
-                    startPlayer();
-                }
-            }, 500);
-
-        } catch (e) {
-            status.innerText = "CORS/DNS BLOCKED. CHECK WORKER.";
-            status.className = "error";
+    function init() {
+        status.innerText = "Checking Engine Activation...";
+        
+        // Wait for the <script src="shaka.js"> to be ready
+        if (typeof shaka === 'undefined') {
+            status.innerText = "ENGINE NOT READY. RETRYING...";
+            setTimeout(init, 1000);
+            return;
         }
+        
+        status.innerText = "ENGINE ACTIVE. CONNECTING TO TUNNEL...";
+        startPlayer();
     }
 
     async function startPlayer() {
-        // We use the UI-less player for maximum compatibility on mobile data
         const player = new shaka.Player(video);
         
         player.configure({
@@ -81,6 +63,7 @@
         });
 
         try {
+            // Using your worker to bypass Cloudfront and ISP blocks
             const proxiedUrl = myWorker + "/?url=" + encodeURIComponent(rawManifest);
             await player.load(proxiedUrl);
             status.innerText = "LIVE: ZEE TV HD";
@@ -91,10 +74,8 @@
         }
     }
 
-
-    // Start the loading sequence
-    loadEngine();
+    // Start the process
+    window.onload = init;
 </script>
-
 </body>
 </html>
