@@ -61,7 +61,7 @@
             loadChannel(chId);
         }
 
-        async function loadChannel(id) {
+                async function loadChannel(id) {
             const ch = channels[id];
             const status = document.getElementById('status-overlay');
             const video = document.getElementById('video');
@@ -75,8 +75,11 @@
             status.innerText = "MSTV | " + ch.name;
 
             if (ch.type === "shaka") {
+                // --- SHAKA MODE (Zee TV / Bollywood) ---
                 iframe.style.display = "none";
                 iframe.src = "";
+                // Remove sandbox so Shaka has full power for DRM/EME
+                iframe.removeAttribute('sandbox'); 
                 video.style.display = "block";
                 
                 player.resetConfiguration();
@@ -86,11 +89,21 @@
 
                 try {
                     await player.load(ch.url);
-                } catch (e) { status.innerText = "Playback Error: " + e.code; }
+                } catch (e) { 
+                    status.innerText = "Playback Error: " + e.code; 
+                    console.error("Shaka Error:", e);
+                }
             } else {
+                // --- IFRAME MODE (Star Sports) ---
                 video.style.display = "none";
-                player.unload();
+                player.unload(); // Stop Shaka background activity
+                
                 iframe.style.display = "block";
+                
+                // ANTI-REDIRECTION SANDBOX: 
+                // Blocks popups and top-level page jumps (redirects)
+                iframe.setAttribute('sandbox', 'allow-forms allow-scripts allow-same-origin allow-presentation');
+                
                 iframe.src = ch.url;
             }
         }
@@ -99,3 +112,4 @@
     </script>
 </body>
 </html>
+
