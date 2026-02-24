@@ -2,68 +2,77 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Shaka Player Clear Key Test</title>
-    <!-- Include Shaka Player library from a CDN for testing -->
-    <!-- You can replace this with your local build: "dist/shaka-player.compiled.js" -->
-    <script src="https://cdnjs.cloudflare.com"></script>
+    <title>MSTV Network | Unified Player</title>
+    <!-- Pointing to your local shaka.js -->
+    <script src="shaka.js"></script>
     <style>
-        body { margin: 0; background: #000; display: flex; justify-content: center; align-items: center; height: 100vh; }
-        video { width: 80%; max-width: 800px; background: #222; }
+        body { margin: 0; background: #000; font-family: sans-serif; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; overflow: hidden; }
+        #player-wrapper { position: relative; width: 90%; max-width: 900px; aspect-ratio: 16/9; background: #111; border: 2px solid #333; border-radius: 8px; overflow: hidden; }
+        video { width: 100%; height: 100%; }
+        #status { position: absolute; bottom: 10px; left: 10px; background: rgba(0,0,0,0.7); padding: 5px 10px; font-size: 12px; border-radius: 4px; }
+        #error-display { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,0,0,0.8); display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 10; text-align: center; }
     </style>
 </head>
 <body>
 
-    <video id="video" controls autoplay crossorigin="anonymous"></video>
+    <div id="player-wrapper">
+        <div id="error-display">
+            <h2 id="err-title">Playback Error</h2>
+            <p id="err-msg"></p>
+            <button onclick="location.reload()" style="padding:10px 20px; cursor:pointer;">Retry</button>
+        </div>
+        <video id="video" controls autoplay crossorigin="anonymous"></video>
+        <div id="status">Initializing...</div>
+    </div>
 
     <script>
-        // --- CONFIGURATION ---
-        const manifestUri = 'YOUR_MANIFEST_URL_HERE'; // e.g., .mpd or .m3u8
-        const clearKeys = {
-            'hex_key_id_1': 'hex_key_value_1',
-            // Example: 'deadbeefdeadbeefdeadbeefdeadbeef': '18675309186753091867530918675309'
-        };
-
-        async function initApp() {
-            // 1. Install polyfills for browser compatibility
-            shaka.polyfill.installAll();
-
-            // 2. Check if the browser supports Shaka Player
-            if (shaka.Player.isBrowserSupported()) {
-                initPlayer();
-            } else {
-                console.error('Browser not supported!');
-            }
-        }
+        // UPDATE THESE MANUALLY IF ZEE TV STOPS WORKING
+        const manifestUri = 'https://d1g8wgjurz8via.cloudfront.net/bpk-tv/Zeetv/default/main.mpd';
+        const keyId = 'ed068cf84f0640ccbc7c0e395c0a272e';
+        const key = 'bb722190f2bb446391020411a7d0828b';
 
         async function initPlayer() {
+            const status = document.getElementById('status');
             const video = document.getElementById('video');
+            const errorDisplay = document.getElementById('error-display');
+
+            if (typeof shaka === 'undefined') {
+                status.innerText = "Error: shaka.js not found!";
+                return;
+            }
+
+            shaka.polyfill.installAll();
             const player = new shaka.Player(video);
 
-            // 3. Configure Clear Keys
-            // This bypasses the need for a license server by providing keys directly.
+            // 1. DRM Configuration
             player.configure({
-                drm: {
-                    clearKeys: clearKeys
-                }
+                drm: { clearKeys: { [keyId]: key } }
             });
 
-            // 4. Error Handling
+            // 2. Networking Filter (The "Surity" Part)
+            player.getNetworkingEngine().registerRequestFilter((type, request) => {
+                request.headers['Origin'] = 'https://www.zee5.com';
+                request.headers['Referer'] = 'https://www.zee5.com'; // Note the trailing slash
+            });
+
+            // 3. Error Handling
             player.addEventListener('error', (event) => {
-                console.error('Shaka Player Error:', event.detail);
+                const err = event.detail;
+                errorDisplay.style.display = 'flex';
+                document.getElementById('err-msg').innerText = `Error Code: ${err.code}\n(Likely Expired Keys or 403 Forbidden)`;
+                status.innerText = "Playback Failed.";
             });
 
-            // 5. Load the manifest
             try {
+                status.innerText = "Loading Zee TV...";
                 await player.load(manifestUri);
-                console.log('The video has loaded successfully!');
+                status.innerText = "Playing Live Stream";
             } catch (e) {
-                console.error('Load Error:', e);
+                // Handled by event listener
             }
         }
 
-        // Initialize when the DOM is ready
-        document.addEventListener('DOMContentLoaded', initApp);
+        document.addEventListener('DOMContentLoaded', initPlayer);
     </script>
 </body>
 </html>
-
