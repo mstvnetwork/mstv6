@@ -2,71 +2,85 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Shaka Player - Secure Clear Key & Headers</title>
-    <!-- Replace with your local build path if needed: "dist/shaka-player.compiled.js" -->
+    <title>Shaka Debugger - ZeeTV</title>
     <script src="https://cdnjs.cloudflare.com"></script>
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; }
-        video { width: 100%; height: 100%; display: block; }
+        body { margin: 0; background: #000; font-family: sans-serif; color: white; }
+        .container { position: relative; width: 100vw; height: 100vh; display: flex; justify-content: center; align-items: center; }
+        video { width: 90%; max-height: 80%; border: 1px solid #333; }
+        #debug-overlay { position: absolute; top: 20px; left: 20px; background: rgba(255,0,0,0.8); padding: 15px; border-radius: 8px; display: none; z-index: 10; }
+        #status-log { position: absolute; bottom: 20px; left: 20px; font-family: monospace; font-size: 12px; color: #aaa; }
     </style>
 </head>
 <body>
-    <video id="video" controls autoplay crossorigin="anonymous"></video>
+
+    <div class="container">
+        <div id="debug-overlay">
+            <h3 style="margin-top:0">⚠️ Playback Error</h3>
+            <p id="error-message">Initializing...</p>
+            <p id="error-code" style="font-weight:bold"></p>
+        </div>
+        <video id="video" controls autoplay crossorigin="anonymous"></video>
+        <div id="status-log">System: Ready...</div>
+    </div>
 
     <script>
-        // --- CONSTANTS ---
         const manifestUri = 'https://d1g8wgjurz8via.cloudfront.net/bpk-tv/Zeetv/default/main.mpd?';
         const keyId = 'ed068cf84f0640ccbc7c0e395c0a272e';
         const key = 'bb722190f2bb446391020411a7d0828b';
+   
 
-        async function initPlayer() {
-            // Install polyfills
+        function logStatus(msg) {
+            document.getElementById('status-log').innerText += "\n> " + msg;
+            console.log(msg);
+        }
+
+        async function initDebugPlayer() {
             shaka.polyfill.installAll();
-
-            if (!shaka.Player.isBrowserSupported()) {
-                console.error('Browser not supported!');
-                return;
-            }
-
             const video = document.getElementById('video');
             const player = new shaka.Player(video);
+            const overlay = document.getElementById('debug-overlay');
 
-            // 1. CONFIGURE CLEAR KEYS
-            // Maps the hex key ID to the hex content key
+            // 1. DRM CONFIG
             player.configure({
-                drm: {
-                    clearKeys: {
-                        [keyId]: key
-                    }
+                drm: { clearKeys: { [keyId]: key } },
+                manifest: { retryParameters: { maxAttempts: 2 } }
+            });
+
+            // 2. NETWORK FILTER (The "Surity" Part)
+            player.getNetworkingEngine().registerRequestFilter((type, request) => {
+                logStatus(`Requesting ${type === 1 ? 'Manifest' : 'Segment'}...`);
+                request.headers['Origin'] = 'https://www.zee5.com';
+                request.headers['Referer'] = 'https://www.zee5.com';
+            });
+
+            // 3. DETAILED ERROR CATCHER
+            player.addEventListener('error', (event) => {
+                const err = event.detail;
+                overlay.style.display = 'block';
+                document.getElementById('error-code').innerText = `Code: ${err.code}`;
+                
+                if (err.code === 1001) {
+                    document.getElementById('error-message').innerText = "HTTP 403/404: The server rejected the request. Your headers or URL might be blocked.";
+                } else if (err.code === 6007) {
+                    document.getElementById('error-message').innerText = "DRM Key Error: The Clear Key ID or Value is likely expired or incorrect.";
+                } else if (err.code === 1002) {
+                    document.getElementById('error-message').innerText = "CORS Error: You must run this from 'localhost' or HTTPS, not a local file.";
+                } else {
+                    document.getElementById('error-message').innerText = "Unknown Error occurred. Check console for details.";
                 }
             });
 
-            // 2. INTEGRATE HEADERS VIA REQUEST FILTER
-            // This intercepts all network requests (manifests and segments)
-            player.getNetworkingEngine().registerRequestFilter((type, request) => {
-                // Add common headers required by CloudFront/ZeeTV
-                request.headers['Origin'] = 'https://www.zee5.com';
-                request.headers['Referer'] = 'https://www.zee5.com';
-                
-                // Note: Some headers like 'User-Agent' are 'forbidden' and 
-                // cannot be modified by scripts in most browsers for security.
-            });
-
-            // 3. ERROR HANDLING
-            player.addEventListener('error', (event) => {
-                console.error('Shaka Error:', event.detail);
-            });
-
-            // 4. LOAD STREAM
             try {
+                logStatus("Loading Manifest...");
                 await player.load(manifestUri);
-                console.log('The video has loaded successfully with custom headers!');
+                logStatus("Success! Playing content.");
             } catch (e) {
-                console.error('Load Error:', e);
+                // Error listener above will handle the UI display
             }
         }
 
-        document.addEventListener('DOMContentLoaded', initPlayer);
+        document.addEventListener('DOMContentLoaded', initDebugPlayer);
     </script>
 </body>
 </html>
