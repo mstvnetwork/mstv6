@@ -44,6 +44,7 @@
         <iframe id="external-frame" allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe>
     </div>
 </div>
+
 <script>
     // --- DATABASE ---
     const channels = [
@@ -57,7 +58,7 @@
             name: "Bollywood Classic",
             url: "https://d35j504z0x2vu2.cloudfront.net",
             type: "shaka",
-            clearKey: null 
+            clearKey: null // Clear HLS
         },
         {
             name: "Star Sports (External)",
@@ -70,15 +71,8 @@
     const video = document.getElementById('video');
     const iframe = document.getElementById('external-frame');
     const overlay = document.getElementById('overlay');
-    const sidebar = document.getElementById('sidebar');
 
     async function init() {
-        // 1. AUTO-HIDE SIDEBAR IF EMBEDDED
-        if (window.self !== window.top) {
-            sidebar.style.display = 'none'; // Hides the channel list automatically
-            overlay.style.display = 'none'; // Optional: hide status overlay too
-        }
-
         if (typeof shaka === 'undefined') {
             overlay.innerText = "Error: shaka.js not found!";
             return;
@@ -87,21 +81,65 @@
         shaka.polyfill.installAll();
         player = new shaka.Player(video);
 
+        // Add your "Surity" filter for CloudFront streams
         player.getNetworkingEngine().registerRequestFilter((type, request) => {
             request.headers['Origin'] = 'https://www.zee5.com';
             request.headers['Referer'] = 'https://www.zee5.com';
         });
 
+        player.addEventListener('error', (e) => overlay.innerText = "Error Code: " + e.detail.code);
+
         renderButtons();
-        
-        // 2. LOAD CHANNEL FROM URL PARAMETER (Optional but recommended)
-        // Usage: https://yourpage.io
-        const urlParams = new URLSearchParams(window.location.search);
-        const chIndex = parseInt(urlParams.get('ch')) || 0;
-        loadChannel(chIndex);
+        loadChannel(0); // Load first channel by default
     }
 
-    // ... (rest of renderButtons and loadChannel functions from previous code)
+    function renderButtons() {
+        const list = document.getElementById('channel-list');
+        channels.forEach((ch, index) => {
+            const btn = document.createElement('button');
+            btn.className = 'btn';
+            btn.innerText = ch.name;
+            btn.onclick = () => loadChannel(index, btn);
+            list.appendChild(btn);
+        });
+    }
+
+    async function loadChannel(index, clickedBtn) {
+        // UI cleanup
+        document.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
+        if (clickedBtn) clickedBtn.classList.add('active');
+        
+        const ch = channels[index];
+        overlay.innerText = "Loading: " + ch.name;
+
+        if (ch.type === "shaka") {
+            iframe.style.display = "none";
+            iframe.src = ""; // Stop iframe audio
+            video.style.display = "block";
+
+            // Reset DRM config for every new load
+            player.resetConfiguration();
+            if (ch.clearKey) {
+                player.configure({ drm: { clearKeys: ch.clearKey } });
+            }
+
+            try {
+                await player.load(ch.url);
+                overlay.innerText = "Playing: " + ch.name;
+            } catch (e) {
+                console.error(e);
+            }
+        } else {
+            // IFRAME MODE (Star Sports)
+            video.style.display = "none";
+            player.unload(); // Stop shaka video
+            iframe.style.display = "block";
+            iframe.src = ch.url;
+            overlay.innerText = "External Stream: " + ch.name;
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
 </script>
 </body>
 </html>
