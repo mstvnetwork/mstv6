@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+    <meta charset="UTF-8">
+    <title>MSTV Network | Multi-Channel Player</title>
+    <!-- Use your local library -->
+    <script src="shaka.js"></script>
+    <style>
+        body { margin: 0; background: #000; font-family: sans-serif; color: white; display: flex; height: 100vh; overflow: hidden; }
+        /* Sidebar for Channels */
+        #sidebar { width: 250px; background: #111; border-right: 1px solid #333; overflow-y: auto; padding: 10px; }
+        .channel-item { padding: 15px; margin-bottom: 10px; background: #222; border-radius: 5px; cursor: pointer; transition: 0.3s; border-left: 4px solid transparent; }
+        .channel-item:hover { background: #333; }
+        .channel-item.active { border-left-color: #007bff; background: #2c2c2c; }
+        
+        /* Main Stage */
+        #main-stage { flex-grow: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative; }
+        #player-container, #external-iframe { width: 90%; aspect-ratio: 16/9; background: #000; display: none; }
+        video { width: 100%; height: 100%; }
+        iframe { width: 100%; height: 100%; border: none; }
+        
+        #status-bar { position: absolute; bottom: 10px; left: 10px; font-size: 12px; color: #666; }
+    </style>
+</head>
+<body>
+
+    <div id="sidebar">
+        <h2 style="font-size: 18px; color: #007bff;">Channel List</h2>
+        <div class="channel-item active" onclick="switchChannel(0, this)">Zee TV (DASH/DRM)</div>
+        <div class="channel-item" onclick="switchChannel(1, this)">Bollywood Classic (HLS)</div>
+        <div class="channel-item" onclick="switchChannel(2, this)">Star Sports (External)</div>
+    </div>
+
+    <div id="main-stage">
+        <!-- Shaka Player for DASH/HLS -->
+        <div id="player-container">
+            <video id="video" controls autoplay crossorigin="anonymous"></video>
+        </div>
+
+        <!-- Iframe for pre-packaged pages like Star Sports -->
+        <iframe id="external-iframe" allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe>
+
+        <div id="status-bar">System Ready | 2026.02.24</div>
+    </div>
+
+    <script>
+        let player;
+        const video = document.getElementById('video');
+        const shakaContainer = document.getElementById('player-container');
+        const externalIframe = document.getElementById('external-iframe');
+
+        const channels = [
+            {
+                name: "Zee TV",
+                type: "shaka",
+                url: "https://d1g8wgjurz8via.cloudfront.net/bpk-tv/Zeetv/default/main.mpd",
+                drm: { keyId: 'ed068cf84f0640ccbc7c0e395c0a272e', key: 'bb722190f2bb446391020411a7d0828b' }
+            },
+            {
+                name: "Bollywood Classic",
+                type: "shaka",
+                url: "https://d35j504z0x2vu2.cloudfront.net/v1/manifest/0bc8e8376bd8417a1b6761138aa41c26c7309312/bollywood-classic/6b126777-7e9a-444f-9845-48fa1d4ed694/1.m3u8",
+                drm: null // Clear HLS stream
+            },
+            {
+                name: "Star Sports",
+                type: "iframe",
+                url: "https://streamcrichd.com/update/star.php"
+            }
+        ];
+
+        async function initApp() {
+            shaka.polyfill.installAll();
+            player = new shaka.Player(video);
+            
+            // Re-apply your successful Zee5 headers
+            player.getNetworkingEngine().registerRequestFilter((type, request) => {
+                request.headers['Origin'] = 'https://www.zee5.com';
+                request.headers['Referer'] = 'https://www.zee5.com';
+            });
+
+            // Load default channel
+            switchChannel(0, document.querySelector('.channel-item'));
+        }
+
+        async function switchChannel(index, element) {
+            // UI Toggle
+            document.querySelectorAll('.channel-item').forEach(el => el.classList.remove('active'));
+            element.classList.add('active');
+
+            const ch = channels[index];
+
+            if (ch.type === "shaka") {
+                externalIframe.style.display = 'none';
+                shakaContainer.style.display = 'block';
+                
+                // Reset and Reconfigure
+                player.resetConfiguration();
+                if (ch.drm) {
+                    player.configure({ drm: { clearKeys: { [ch.drm.keyId]: ch.drm.key } } });
+                }
+
+                try {
+                    await player.load(ch.url);
+                    console.log(`Loaded: ${ch.name}`);
+                } catch (e) {
+                    console.error("Load failed", e);
+                }
+            } else {
+                // External Iframe logic
+                shakaContainer.style.display = 'none';
+                externalIframe.style.display = 'block';
+                player.unload(); // Stop background video
+                externalIframe.src = ch.url;
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', initApp);
+    </script>
+</body>
+</html>
