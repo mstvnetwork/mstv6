@@ -2,85 +2,99 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Shaka Debugger - ZeeTV</title>
-    <script src="https://cdnjs.cloudflare.com"></script>
+    <title>Shaka Debugger | Local Lib Test</title>
+    
+    <!-- 1. POINT TO YOUR LOCAL FILE -->
+    <script src="shaka.js"></script>
+
     <style>
-        body { margin: 0; background: #000; font-family: sans-serif; color: white; }
-        .container { position: relative; width: 100vw; height: 100vh; display: flex; justify-content: center; align-items: center; }
-        video { width: 90%; max-height: 80%; border: 1px solid #333; }
-        #debug-overlay { position: absolute; top: 20px; left: 20px; background: rgba(255,0,0,0.8); padding: 15px; border-radius: 8px; display: none; z-index: 10; }
-        #status-log { position: absolute; bottom: 20px; left: 20px; font-family: monospace; font-size: 12px; color: #aaa; }
+        body { margin: 0; background: #111; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: white; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; }
+        #player-container { position: relative; width: 80%; max-width: 900px; border: 2px solid #444; border-radius: 8px; overflow: hidden; background: #000; }
+        video { width: 100%; display: block; }
+        #error-box { position: absolute; top: 10%; left: 10%; right: 10%; background: rgba(220, 53, 69, 0.95); padding: 20px; border-radius: 5px; display: none; z-index: 100; border-left: 5px solid white; }
+        .log-panel { margin-top: 15px; width: 80%; max-width: 900px; font-family: monospace; font-size: 12px; color: #888; background: #1a1a1a; padding: 10px; border-radius: 4px; height: 100px; overflow-y: auto; }
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <div id="debug-overlay">
-            <h3 style="margin-top:0">⚠️ Playback Error</h3>
-            <p id="error-message">Initializing...</p>
-            <p id="error-code" style="font-weight:bold"></p>
+    <div id="player-container">
+        <div id="error-box">
+            <h3 style="margin:0 0 10px 0;">Playback Blocked</h3>
+            <p id="err-desc" style="margin:0; font-size: 14px;"></p>
+            <p id="err-code" style="margin-top:10px; font-weight:bold; opacity: 0.8;"></p>
         </div>
         <video id="video" controls autoplay crossorigin="anonymous"></video>
-        <div id="status-log">System: Ready...</div>
     </div>
 
+    <div class="log-panel" id="logger">System initialized...</div>
+
     <script>
+        // --- CONSTANTS ---
         const manifestUri = 'https://d1g8wgjurz8via.cloudfront.net/bpk-tv/Zeetv/default/main.mpd?';
         const keyId = 'ed068cf84f0640ccbc7c0e395c0a272e';
         const key = 'bb722190f2bb446391020411a7d0828b';
    
+           
 
-        function logStatus(msg) {
-            document.getElementById('status-log').innerText += "\n> " + msg;
-            console.log(msg);
+        function log(msg) {
+            const l = document.getElementById('logger');
+            l.innerHTML += `<br>> ${msg}`;
+            l.scrollTop = l.scrollHeight;
         }
 
-        async function initDebugPlayer() {
+        async function startPlayer() {
+            // 1. Check if shaka.js is correctly loaded
+            if (typeof shaka === 'undefined') {
+                log("<span style='color:red'>ERROR: 'shaka' object not found. Ensure shaka.js is in the same folder!</span>");
+                alert("Library Error: shaka.js failed to load. Check file path.");
+                return;
+            }
+
+            log("Shaka Library detected. Version: " + shaka.Player.version);
             shaka.polyfill.installAll();
+
             const video = document.getElementById('video');
             const player = new shaka.Player(video);
-            const overlay = document.getElementById('debug-overlay');
+            const errorBox = document.getElementById('error-box');
 
-            // 1. DRM CONFIG
+            // 2. ClearKey Config
             player.configure({
-                drm: { clearKeys: { [keyId]: key } },
-                manifest: { retryParameters: { maxAttempts: 2 } }
+                drm: { clearKeys: { [keyId]: key } }
             });
 
-            // 2. NETWORK FILTER (The "Surity" Part)
+            // 3. Network "Surity" Filter
             player.getNetworkingEngine().registerRequestFilter((type, request) => {
-                logStatus(`Requesting ${type === 1 ? 'Manifest' : 'Segment'}...`);
                 request.headers['Origin'] = 'https://www.zee5.com';
                 request.headers['Referer'] = 'https://www.zee5.com';
             });
 
-            // 3. DETAILED ERROR CATCHER
+            // 4. Error Handler
             player.addEventListener('error', (event) => {
                 const err = event.detail;
-                overlay.style.display = 'block';
-                document.getElementById('error-code').innerText = `Code: ${err.code}`;
+                errorBox.style.display = 'block';
+                document.getElementById('err-code').innerText = `Error Code: ${err.code}`;
                 
-                if (err.code === 1001) {
-                    document.getElementById('error-message').innerText = "HTTP 403/404: The server rejected the request. Your headers or URL might be blocked.";
-                } else if (err.code === 6007) {
-                    document.getElementById('error-message').innerText = "DRM Key Error: The Clear Key ID or Value is likely expired or incorrect.";
-                } else if (err.code === 1002) {
-                    document.getElementById('error-message').innerText = "CORS Error: You must run this from 'localhost' or HTTPS, not a local file.";
-                } else {
-                    document.getElementById('error-message').innerText = "Unknown Error occurred. Check console for details.";
-                }
+                if (err.code === 1001) document.getElementById('err-desc').innerText = "CloudFront 403 Forbidden. The server is rejecting the request.";
+                else if (err.code === 6007) document.getElementById('err-desc').innerText = "DRM Key mismatch or expired. The video is encrypted but the key failed.";
+                else document.getElementById('err-desc').innerText = "A network or decoding error occurred.";
+                
+                log(`Shaka Error ${err.code} triggered.`);
             });
 
+            // 5. Execution
             try {
-                logStatus("Loading Manifest...");
+                log("Attempting to load ZeeTV manifest...");
                 await player.load(manifestUri);
-                logStatus("Success! Playing content.");
+                log("<span style='color:lime'>Success! Streaming started.</span>");
             } catch (e) {
-                // Error listener above will handle the UI display
+                // Caught by event listener
             }
         }
 
-        document.addEventListener('DOMContentLoaded', initDebugPlayer);
+        // Delay execution slightly to ensure shaka.js is parsed
+        window.onload = () => {
+            setTimeout(startPlayer, 100);
+        };
     </script>
 </body>
 </html>
