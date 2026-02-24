@@ -1,12 +1,69 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
     <title>Shaka Player Clear Key Test</title>
+    <!-- Include Shaka Player library from a CDN for testing -->
+    <!-- You can replace this with your local build: "dist/shaka-player.compiled.js" -->
+    <script src="https://cdnjs.cloudflare.com"></script>
+    <style>
+        body { margin: 0; background: #000; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        video { width: 80%; max-width: 800px; background: #222; }
+    </style>
 </head>
 <body>
-    <video id="video" width="640" height="480" controls autoplay></video>
-    <!-- Replace with the correct path to your local shaka-player.compiled.js file -->
-    <script src="path/to/shaka-player/dist/shaka-player.compiled.js"></script>
-    <script src="your-script.js"></script>
+
+    <video id="video" controls autoplay crossorigin="anonymous"></video>
+
+    <script>
+        // --- CONFIGURATION ---
+        const manifestUri = 'YOUR_MANIFEST_URL_HERE'; // e.g., .mpd or .m3u8
+        const clearKeys = {
+            'hex_key_id_1': 'hex_key_value_1',
+            // Example: 'deadbeefdeadbeefdeadbeefdeadbeef': '18675309186753091867530918675309'
+        };
+
+        async function initApp() {
+            // 1. Install polyfills for browser compatibility
+            shaka.polyfill.installAll();
+
+            // 2. Check if the browser supports Shaka Player
+            if (shaka.Player.isBrowserSupported()) {
+                initPlayer();
+            } else {
+                console.error('Browser not supported!');
+            }
+        }
+
+        async function initPlayer() {
+            const video = document.getElementById('video');
+            const player = new shaka.Player(video);
+
+            // 3. Configure Clear Keys
+            // This bypasses the need for a license server by providing keys directly.
+            player.configure({
+                drm: {
+                    clearKeys: clearKeys
+                }
+            });
+
+            // 4. Error Handling
+            player.addEventListener('error', (event) => {
+                console.error('Shaka Player Error:', event.detail);
+            });
+
+            // 5. Load the manifest
+            try {
+                await player.load(manifestUri);
+                console.log('The video has loaded successfully!');
+            } catch (e) {
+                console.error('Load Error:', e);
+            }
+        }
+
+        // Initialize when the DOM is ready
+        document.addEventListener('DOMContentLoaded', initApp);
+    </script>
 </body>
 </html>
+
