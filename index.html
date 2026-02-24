@@ -3,76 +3,99 @@
 <head>
     <meta charset="UTF-8">
     <title>MSTV Network | Unified Player</title>
-    <!-- Pointing to your local shaka.js -->
     <script src="shaka.js"></script>
     <style>
-        body { margin: 0; background: #000; font-family: sans-serif; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; overflow: hidden; }
-        #player-wrapper { position: relative; width: 90%; max-width: 900px; aspect-ratio: 16/9; background: #111; border: 2px solid #333; border-radius: 8px; overflow: hidden; }
-        video { width: 100%; height: 100%; }
-        #status { position: absolute; bottom: 10px; left: 10px; background: rgba(0,0,0,0.7); padding: 5px 10px; font-size: 12px; border-radius: 4px; }
-        #error-display { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,0,0,0.8); display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 10; text-align: center; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; color: white; }
+        #stage { width: 100vw; height: 100vh; position: relative; display: flex; justify-content: center; align-items: center; }
+        video, iframe { width: 100%; height: 100%; border: none; display: none; }
+        #status-overlay { position: absolute; top: 15px; left: 15px; background: rgba(0,0,0,0.6); padding: 5px 12px; border-radius: 4px; font-size: 12px; z-index: 100; border-left: 3px solid #007bff; }
     </style>
 </head>
 <body>
 
-    <div id="player-wrapper">
-        <div id="error-display">
-            <h2 id="err-title">Playback Error</h2>
-            <p id="err-msg"></p>
-            <button onclick="location.reload()" style="padding:10px 20px; cursor:pointer;">Retry</button>
-        </div>
+    <div id="stage">
+        <div id="status-overlay">MSTV | Initializing...</div>
         <video id="video" controls autoplay crossorigin="anonymous"></video>
-        <div id="status">Initializing...</div>
+        <iframe id="external-frame" allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe>
     </div>
 
     <script>
-        // UPDATE THESE MANUALLY IF ZEE TV STOPS WORKING
-        const manifestUri = 'https://d1g8wgjurz8via.cloudfront.net/bpk-tv/Zeetv/default/main.mpd';
-        const keyId = 'ed068cf84f0640ccbc7c0e395c0a272e';
-        const key = 'bb722190f2bb446391020411a7d0828b';
+        const channels = {
+            "1": {
+                name: "Zee TV",
+                url: "https://d1g8wgjurz8via.cloudfront.net/bpk-tv/Zeetv/default/main.mpd",
+                type: "shaka",
+                drm: { 'ed068cf84f0640ccbc7c0e395c0a272e': 'bb722190f2bb446391020411a7d0828b' }
+            },
+            "2": {
+                name: "Bollywood Classic",
+                url: "https://d35j504z0x2vu2.cloudfront.net/v1/manifest/0bc8e8376bd8417a1b6761138aa41c26c7309312/bollywood-classic/6b126777-7e9a-444f-9845-48fa1d4ed694/1.m3u8",
+                type: "shaka"
+            },
+            "3": {
+                name: "Star Sports",
+                url: "https://streamcrichd.com/update/star.php",
+                type: "iframe"
+            }
+        };
 
-        async function initPlayer() {
-            const status = document.getElementById('status');
+        let player;
+
+        async function initApp() {
+            if (typeof shaka === 'undefined') return alert("shaka.js not found!");
+
+            shaka.polyfill.installAll();
             const video = document.getElementById('video');
-            const errorDisplay = document.getElementById('error-display');
+            player = new shaka.Player(video);
 
-            if (typeof shaka === 'undefined') {
-                status.innerText = "Error: shaka.js not found!";
+            // Surity Headers for Zee TV
+            player.getNetworkingEngine().registerRequestFilter((type, request) => {
+                request.headers['Origin'] = 'https://www.zee5.com';
+                request.headers['Referer'] = 'https://www.zee5.com';
+            });
+
+            // Read the number directly after the "?"
+            const query = window.location.search.substring(1);
+            const chId = query || "1"; 
+            
+            loadChannel(chId);
+        }
+
+        async function loadChannel(id) {
+            const ch = channels[id];
+            const status = document.getElementById('status-overlay');
+            const video = document.getElementById('video');
+            const iframe = document.getElementById('external-frame');
+
+            if (!ch) {
+                status.innerText = "Error: Channel " + id + " not found.";
                 return;
             }
 
-            shaka.polyfill.installAll();
-            const player = new shaka.Player(video);
+            status.innerText = "MSTV | " + ch.name;
 
-            // 1. DRM Configuration
-            player.configure({
-                drm: { clearKeys: { [keyId]: key } }
-            });
+            if (ch.type === "shaka") {
+                iframe.style.display = "none";
+                iframe.src = "";
+                video.style.display = "block";
+                
+                player.resetConfiguration();
+                if (ch.drm) {
+                    player.configure({ drm: { clearKeys: ch.drm } });
+                }
 
-            // 2. Networking Filter (The "Surity" Part)
-            player.getNetworkingEngine().registerRequestFilter((type, request) => {
-                request.headers['Origin'] = 'https://www.zee5.com';
-                request.headers['Referer'] = 'https://www.zee5.com'; // Note the trailing slash
-            });
-
-            // 3. Error Handling
-            player.addEventListener('error', (event) => {
-                const err = event.detail;
-                errorDisplay.style.display = 'flex';
-                document.getElementById('err-msg').innerText = `Error Code: ${err.code}\n(Likely Expired Keys or 403 Forbidden)`;
-                status.innerText = "Playback Failed.";
-            });
-
-            try {
-                status.innerText = "Loading Zee TV...";
-                await player.load(manifestUri);
-                status.innerText = "Playing Live Stream";
-            } catch (e) {
-                // Handled by event listener
+                try {
+                    await player.load(ch.url);
+                } catch (e) { status.innerText = "Playback Error: " + e.code; }
+            } else {
+                video.style.display = "none";
+                player.unload();
+                iframe.style.display = "block";
+                iframe.src = ch.url;
             }
         }
 
-        document.addEventListener('DOMContentLoaded', initPlayer);
+        document.addEventListener('DOMContentLoaded', initApp);
     </script>
 </body>
 </html>
