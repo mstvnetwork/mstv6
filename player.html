@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Shaka Player - Secure Clear Key & Headers</title>
+    <!-- Replace with your local build path if needed: "dist/shaka-player.compiled.js" -->
+    <script src="https://cdnjs.cloudflare.com"></script>
+    <style>
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; }
+        video { width: 100%; height: 100%; display: block; }
+    </style>
+</head>
+<body>
+    <video id="video" controls autoplay crossorigin="anonymous"></video>
+
+    <script>
+        // --- CONSTANTS ---
+        const manifestUri = 'https://d1g8wgjurz8via.cloudfront.net/bpk-tv/Zeetv/default/main.mpd?';
+        const keyId = 'ed068cf84f0640ccbc7c0e395c0a272e';
+        const key = 'bb722190f2bb446391020411a7d0828b';
+
+        async function initPlayer() {
+            // Install polyfills
+            shaka.polyfill.installAll();
+
+            if (!shaka.Player.isBrowserSupported()) {
+                console.error('Browser not supported!');
+                return;
+            }
+
+            const video = document.getElementById('video');
+            const player = new shaka.Player(video);
+
+            // 1. CONFIGURE CLEAR KEYS
+            // Maps the hex key ID to the hex content key
+            player.configure({
+                drm: {
+                    clearKeys: {
+                        [keyId]: key
+                    }
+                }
+            });
+
+            // 2. INTEGRATE HEADERS VIA REQUEST FILTER
+            // This intercepts all network requests (manifests and segments)
+            player.getNetworkingEngine().registerRequestFilter((type, request) => {
+                // Add common headers required by CloudFront/ZeeTV
+                request.headers['Origin'] = 'https://www.zee5.com';
+                request.headers['Referer'] = 'https://www.zee5.com';
+                
+                // Note: Some headers like 'User-Agent' are 'forbidden' and 
+                // cannot be modified by scripts in most browsers for security.
+            });
+
+            // 3. ERROR HANDLING
+            player.addEventListener('error', (event) => {
+                console.error('Shaka Error:', event.detail);
+            });
+
+            // 4. LOAD STREAM
+            try {
+                await player.load(manifestUri);
+                console.log('The video has loaded successfully with custom headers!');
+            } catch (e) {
+                console.error('Load Error:', e);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', initPlayer);
+    </script>
+</body>
+</html>
