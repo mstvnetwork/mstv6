@@ -35,14 +35,11 @@ const channels = {
         type: "hls"
     },
     "3": {
-        name: "CNN (USA)",
+        name: "Movies Plus",
         // Fixed: Added the proxy + the full CNN stream URL
-        url: "https://cors-anywhere.herokuapp.com",
+        url: "https://padmaonline.duckdns.org:8088/StarPlusHD/index.m3u8",
         type: "shaka",
-        drm: {
-            "900c43f0e02742dd854148b7a75abbec": "da315cca7f2902b4de23199718ed7e90"
-        }
-    }, // This was the bracket you were missing!
+    },
     "4": {
         name: "Zindgi Tv (Pak)",
         url: "https://5ad386ff92705.streamlock.net/live_transcoder/ngrp:zindagitv.stream_all/chunklist.m3u8",
